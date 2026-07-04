@@ -1,0 +1,123 @@
+name: Collect & Push Dataset
+
+on:
+  schedule:
+    # Run daily at 06:00 UTC (after Asian markets close, before US open)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      group:
+        description: 'Run a specific group only (leave empty for all)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Dry run (list scripts without running)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: collect
+  cancel-in-progress: false  # never cancel a running collection
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            pandas \
+            pyarrow \
+            requests \
+            huggingface_hub \
+            xlrd \
+            openpyxl
+
+      - name: Run collectors
+        env:
+          # Optional API keys — collectors fall back gracefully if absent
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          CRYPTOCOMPARE_API_KEY: ${{ secrets.CRYPTOCOMPARE_API_KEY }}
+          SIMFIN_API_KEY: ${{ secrets.SIMFIN_API_KEY }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python run_all_collectors.py --dry-run
+          elif [ -n "${{ github.event.inputs.group }}" ]; then
+            python run_all_collectors.py --group "${{ github.event.inputs.group }}" --verbose
+          else
+            python run_all_collectors.py --verbose
+          fi
+
+      - name: Count new files
+        id: count
+        run: |
+          count=$(find data -name "*.parquet" 2>/dev/null | wc -l)
+          echo "parquet_count=$count" >> "$GITHUB_OUTPUT"
+          echo "Parquet files on disk: $count"
+
+      - name: Upload data artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openmedallion-data-${{ github.run_number }}
+          path: data/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Push to HuggingFace
+        if: ${{ github.event.inputs.dry_run != 'true' && secrets.HF_TOKEN != '' }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'EOF'
+          import os
+          from huggingface_hub import HfApi
+          from pathlib import Path
+
+          token = os.environ["HF_TOKEN"]
+          api = HfApi(token=token)
+          repo_id = "oyi77/OpenMedallion"
+          data_dir = Path("data")
+
+          parquet_files = list(data_dir.rglob("*.parquet"))
+          print(f"Uploading {len(parquet_files)} parquet files to {repo_id} ...")
+
+          api.upload_folder(
+              folder_path=str(data_dir),
+              path_in_repo="data",
+              repo_id=repo_id,
+              repo_type="dataset",
+              commit_message=f"chore: daily collect — {len(parquet_files)} files",
+              ignore_patterns=["*.tmp", "__pycache__/**"],
+          )
+          print("Upload complete.")
+          EOF
+
+      - name: Commit updated collector scripts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add collectors/ run_all_collectors.py
+          # Only commit if there are actual changes to scripts
+          if git diff --cached --quiet; then
+            echo "No script changes to commit."
+          else
+            git commit -m "chore: update collector scripts [skip ci]"
+            git push
+          fi

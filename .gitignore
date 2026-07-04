@@ -1,0 +1,20 @@
+# Dataset files — stored on HuggingFace, not GitHub
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Secrets / env
+.env
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
