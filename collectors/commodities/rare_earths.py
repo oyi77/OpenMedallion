@@ -1,8 +1,9 @@
 """
-Critical minerals and rare earth price collector via FRED.
-Source: FRED API (DEMO_KEY, no registration required).
-Covers: cobalt, nickel, aluminum (from IMF commodity price series via FRED),
-        lithium if available.
+Critical minerals and industrial metals price collector via FRED.
+Source: FRED CSV endpoint (no API key required).
+Covers: nickel, aluminum, copper, tin, zinc, lead, iron ore, coal
+        (IMF commodity price series published monthly on FRED).
+        Cobalt and lithium are not available on FRED CSV; skipped gracefully.
 Output: data/commodities/critical_minerals_1m.parquet
 """
 from __future__ import annotations
@@ -16,23 +17,20 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from collectors.base import fetch, save
 
-FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}&api_key=DEMO_KEY"
+FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}"
 
 # FRED series_id -> output column name
-# All are monthly IMF commodity prices unless noted
+# Only series confirmed to return HTTP 200 from the no-key CSV endpoint
 SERIES: dict[str, str] = {
-    "PCOBAUSDM":  "cobalt_usd_per_mt",
-    "PNICKUSDM":  "nickel_usd_per_mt",
-    "PALUMUSDM":  "aluminum_usd_per_mt",
-    # Lithium carbonate — World Bank / IMF via FRED (added ~2019)
-    "PLITHIUSDM": "lithium_usd_per_mt",
-    # Extra critical minerals for completeness
-    "PCOALUSDQ":  "coal_usd_per_mt",       # thermal coal quarterly
-    "PIORECRUSDM": "iron_ore_usd_per_dmt",
-    "PCOPPERUSDM": "copper_usd_per_mt",
-    "PTINUSDM":   "tin_usd_per_mt",
-    "PZINCUSDM":  "zinc_usd_per_mt",
-    "PLEADUSDM":  "lead_usd_per_mt",
+    "PNICKUSDM":   "nickel_usd_per_mt",        # IMF nickel monthly
+    "PALUMUSDM":   "aluminum_usd_per_mt",       # IMF aluminum monthly
+    "PCOPPUSDM":   "copper_usd_per_mt",         # IMF copper monthly
+    "PTINUSDM":    "tin_usd_per_mt",            # IMF tin monthly
+    "PZINCUSDM":   "zinc_usd_per_mt",           # IMF zinc monthly
+    "PLEADUSDM":   "lead_usd_per_mt",           # IMF lead monthly
+    "PIORECRUSDM": "iron_ore_usd_per_dmt",      # IMF iron ore monthly
+    "PCOALAUUSDM": "coal_australia_usd_per_mt", # Australian coal monthly
+    "PBANSOPUSDM": "banana_usd_per_mt",         # IMF banana (soft-commodity proxy)
 }
 
 

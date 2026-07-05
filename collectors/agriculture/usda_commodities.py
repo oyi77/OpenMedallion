@@ -1,6 +1,6 @@
 """
 USDA agricultural commodity price collector via FRED and IMF series.
-Source: FRED API (DEMO_KEY, no registration required).
+Source: FRED (no API key required for CSV endpoint).
 Covers: wheat flour, corn PPI, corn IMF, wheat IMF, soybeans, cotton,
         sugar, coffee Arabica, cocoa.
 Output: data/agriculture/usda_agri_prices_1m.parquet
@@ -16,7 +16,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from collectors.base import fetch, save, to_datetime_index
 
-FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}&api_key=DEMO_KEY"
+FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}"
 
 # FRED series_id -> column name in output
 SERIES: dict[str, str] = {

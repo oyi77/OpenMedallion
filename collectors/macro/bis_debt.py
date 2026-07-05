@@ -16,17 +16,17 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from collectors.base import fetch, save
 
-BIS_BASE = "https://stats.bis.org/api/v2/data/dataflow/BIS"
+BIS_V1 = "https://stats.bis.org/api/v1/data"
 
-# Credit-to-GDP gap (WS_CREDIT_GAP dataflow)
-CREDIT_GAP_URL = f"{BIS_BASE}/WS_CREDIT_GAP/1.0/all?format=csv"
+# Credit-to-GDP gap (WS_CREDIT_GAP dataflow) — BIS API v1
+CREDIT_GAP_URL = f"{BIS_V1}/WS_CREDIT_GAP/all/all?format=csv"
 
 # Total credit to private non-financial sector (WS_TC dataflow)
-TOTAL_CREDIT_URL = f"{BIS_BASE}/WS_TC/1.0/all?format=csv"
+TOTAL_CREDIT_URL = f"{BIS_V1}/WS_TC/all/all?format=csv"
 
-# Fallback: data.bis.org topics endpoint
-FALLBACK_CREDIT_GAP = "https://data.bis.org/topics/CREDIT_GAP/BIS,WS_CREDIT_GAP,1.0/all?format=csv"
-FALLBACK_TOTAL_CREDIT = "https://data.bis.org/topics/TOTAL_CREDIT/BIS,WS_TC,1.0/all?format=csv"
+# Fallback: same v1 without agency prefix
+FALLBACK_CREDIT_GAP = f"{BIS_V1}/WS_CREDIT_GAP?format=csv"
+FALLBACK_TOTAL_CREDIT = f"{BIS_V1}/WS_TC?format=csv"
 
 
 def parse_bis_csv(content: bytes) -> pd.DataFrame:
