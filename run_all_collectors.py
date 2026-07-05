@@ -111,10 +111,11 @@ GROUPS: dict[str, dict] = {
             "collectors/prediction_markets/polymarket.py",
             "collectors/prediction_markets/kalshi.py",
             "collectors/prediction_markets/manifold.py",
+            "collectors/prediction_markets/hf_bulk.py",
             "collectors/trade/comtrade.py",
         ],
         "workers": 2,
-        "timeout": 150,
+        "timeout": 600,
     },
     "environmental": {
         "scripts": [
