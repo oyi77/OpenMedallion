@@ -119,15 +119,9 @@ GROUPS: dict[str, dict] = {
             "collectors/prediction_markets/kalshi.py",
             "collectors/prediction_markets/manifold.py",
             "collectors/prediction_markets/hf_bulk.py",
+            "collectors/prediction_markets/sports_odds.py",
         ],
         "workers": 2,
-        "timeout": 600,
-    },
-    "betting": {
-        "scripts": [
-            "collectors/betting/sports_odds.py",
-        ],
-        "workers": 1,
         "timeout": 600,
     },
     "environmental": {

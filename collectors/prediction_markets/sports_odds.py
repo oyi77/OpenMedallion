@@ -7,8 +7,8 @@ Sources:
 - NFL spreadspoke (Kaggle-hosted GitHub CSV): scores + odds since 1966/1979
 
 Output (parquet, one file per league/sport):
-  data/betting/soccer_{league_code}_odds_1d.parquet
-  data/betting/nfl_odds_1d.parquet
+  data/prediction_markets/soccer_{league_code}_odds_1d.parquet
+  data/prediction_markets/nfl_odds_1d.parquet
 
 Columns (soccer):
   date, home_team, away_team, league, season,
@@ -40,7 +40,7 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "data" / "betting"
+OUT_DIR = ROOT / "data" / "prediction_markets"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 STALE_HOURS = 24
