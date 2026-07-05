@@ -108,13 +108,26 @@ GROUPS: dict[str, dict] = {
         "scripts": [
             "collectors/sentiment/wikipedia_pageviews.py",
             "collectors/sentiment/reddit_wsb.py",
+            "collectors/trade/comtrade.py",
+        ],
+        "workers": 2,
+        "timeout": 150,
+    },
+    "prediction_markets": {
+        "scripts": [
             "collectors/prediction_markets/polymarket.py",
             "collectors/prediction_markets/kalshi.py",
             "collectors/prediction_markets/manifold.py",
             "collectors/prediction_markets/hf_bulk.py",
-            "collectors/trade/comtrade.py",
         ],
         "workers": 2,
+        "timeout": 600,
+    },
+    "betting": {
+        "scripts": [
+            "collectors/betting/sports_odds.py",
+        ],
+        "workers": 1,
         "timeout": 600,
     },
     "environmental": {
