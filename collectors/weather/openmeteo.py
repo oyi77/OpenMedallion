@@ -46,15 +46,16 @@ VARIABLES = [
     "precipitation_sum",
     "rain_sum",
     "snowfall_sum",
-    "windspeed_10m_max",
+    "wind_speed_10m_max",
     "et0_fao_evapotranspiration",  # drought indicator
-    "soil_moisture_0_to_7cm",
+    "soil_moisture_0_to_7cm_mean",
 ]
 
 
 def fetch_weather(city: str, lat: float, lon: float, start: str = "2000-01-01") -> pd.DataFrame:
     import datetime
-    end = datetime.date.today().isoformat()
+    # Archive API only has data up to ~2 days ago; today causes 400
+    end = (datetime.date.today() - datetime.timedelta(days=2)).isoformat()
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -81,13 +82,20 @@ def fetch_weather(city: str, lat: float, lon: float, start: str = "2000-01-01") 
 
 
 def main() -> None:
+    import time
+    from base import repo_path
     for city, (lat, lon) in LOCATIONS.items():
+        out = repo_path("weather", f"OpenMeteo_{city}_1d.parquet")
+        if out.exists():
+            print(f"  Skipping {city} (already exists)")
+            continue
         print(f"Fetching weather: {city} ({lat:.2f}, {lon:.2f}) ...")
         try:
             df = fetch_weather(city, lat, lon)
             save(df, "weather", f"OpenMeteo_{city}_1d.parquet")
         except Exception as exc:
             print(f"  WARNING: {city} — {exc}")
+        time.sleep(30)
 
 
 if __name__ == "__main__":

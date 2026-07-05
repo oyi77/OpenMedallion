@@ -25,11 +25,18 @@ def repo_path(category: str, filename: str) -> Path:
     return p
 
 
-def fetch(url: str, params: dict | None = None, retries: int = 3, timeout: int = 30) -> requests.Response:
-    """GET with exponential backoff. Raises on final failure."""
+def fetch(url: str, params: dict | None = None, retries: int = 5, timeout: int = 30) -> requests.Response:
+    """GET with exponential backoff; 429 triggers 60s wait."""
     for attempt in range(1, retries + 1):
         try:
             resp = requests.get(url, params=params, timeout=timeout)
+            if resp.status_code == 429:
+                if attempt == retries:
+                    resp.raise_for_status()
+                wait = 60
+                LOG.warning("Attempt %d/%d failed (429 Too Many Requests) — retrying in %ds", attempt, retries, wait)
+                time.sleep(wait)
+                continue
             resp.raise_for_status()
             return resp
         except requests.RequestException as exc:

@@ -1,8 +1,8 @@
 """
 OECD macro data collector.
-Source: OECD Data API v1 — free, no API key required.
-Covers: GDP growth, inflation, unemployment, current account for OECD countries.
-Output: data/macro/OECD_<indicator>_<country>_1q.parquet
+Source: OECD SDMX REST API v2 — free, no API key required.
+Covers: GDP growth (quarterly), CPI inflation (monthly).
+Output: data/macro/OECD_<indicator>_<country>.parquet
 """
 from __future__ import annotations
 import sys
@@ -15,96 +15,111 @@ from base import fetch, save
 
 OECD_API = "https://sdmx.oecd.org/public/rest/data"
 
-# Dataset IDs and key structures
-# Format: DATASET/LOCATION.SUBJECT.MEASURE.FREQUENCY/all?format=csvfilewithlabels
-INDICATORS = {
-    "GDP_Growth": ("QNA", "B1_GE.GPSA.Q"),
-    "CPI_Inflation": ("PRICES_CPI", "CPALTT01.IXOBSA.Q"),
-    "Unemployment": ("STLABOUR", "UNRTOT.STSA.M"),
-    "CurrentAccount": ("MEI_BOP6", "B6BLTT02.CXCUSA.Q"),
-    "InterestRate_ST": ("STLABOUR", None),  # will use MEI
-    "HousePrice": ("RPPI", "RP_NSA.Q"),
-}
+# GDP Growth — quarterly, percent change vs same quarter prior year
+# Dataflow: OECD.SDD.NAD,DSD_NAMAIN1@DF_QNA_EXPENDITURE_GROWTH_OECD,1.1
+# Key dims (13): FREQ.ADJUSTMENT.REF_AREA.SECTOR.COUNTERPART_SECTOR.TRANSACTION
+#                .INSTR_ASSET.ACTIVITY.EXPENDITURE.UNIT_MEASURE.PRICE_BASE.TRANSFORMATION.TABLE_IDENTIFIER
+GDP_FLOW = "OECD.SDD.NAD,DSD_NAMAIN1@DF_QNA_EXPENDITURE_GROWTH_OECD,1.1"
+GDP_COUNTRIES = (
+    "AUS+AUT+BEL+CAN+CHE+CHL+CZE+DEU+DNK+ESP+EST+FIN+FRA+GBR"
+    "+GRC+HUN+IRL+ISL+ISR+ITA+JPN+KOR+LTU+LUX+LVA+MEX+NLD+NOR"
+    "+NZL+POL+PRT+SVK+SVN+SWE+TUR+USA+COL+CRI+IDN"
+)
+# Q.Y.<COUNTRIES>.S1.S1.B1GQ._Z._Z._Z.PC.L.GY.T0102
+GDP_KEY = f"Q.Y.{GDP_COUNTRIES}.S1.S1.B1GQ._Z._Z._Z.PC.L.GY.T0102"
 
-# Simpler OECD approach using their JSON API
-OECD_JSON = "https://stats.oecd.org/sdmx-json/data/{dataset}/{filter}/all"
-
-OECD_DATASETS = {
-    "GDP_Growth_1q": {
-        "dataset": "QNA",
-        "filter": "AUS+AUT+BEL+CAN+CHL+CZE+DNK+EST+FIN+FRA+DEU+GRC+HUN+ISL+IRL+ISR+ITA+JPN+KOR+LVA+LTU+LUX+MEX+NLD+NZL+NOR+POL+PRT+SVK+SVN+ESP+SWE+CHE+TUR+GBR+USA+COL+CRI+CZE+IDN.B1_GE.GPSA.Q",
-    },
-    "CPI_1m": {
-        "dataset": "PRICES_CPI",
-        "filter": "AUS+AUT+BEL+CAN+CHL+CZE+DNK+FIN+FRA+DEU+GRC+HUN+IRL+ISR+ITA+JPN+KOR+LUX+MEX+NLD+NZL+NOR+POL+PRT+SVK+SVN+ESP+SWE+CHE+TUR+GBR+USA.CPALTT01.IXOBSA.M",
-    },
-    "Unemployment_1m": {
-        "dataset": "STLABOUR",
-        "filter": "AUS+AUT+BEL+CAN+CZE+DNK+FIN+FRA+DEU+GRC+HUN+IRL+ISL+ISR+ITA+JPN+KOR+LUX+MEX+NLD+NZL+NOR+POL+PRT+SVK+SVN+ESP+SWE+CHE+TUR+GBR+USA.UNRTOT.STSA.M",
-    },
-}
+# CPI Inflation — monthly, percent change vs same month prior year
+# Dataflow: OECD.SDD.TPS,DSD_PRICES@DF_PRICES_ALL,1.0
+# Key dims (8): REF_AREA.FREQ.METHODOLOGY.MEASURE.UNIT_MEASURE.EXPENDITURE.ADJUSTMENT.TRANSFORMATION
+CPI_FLOW = "OECD.SDD.TPS,DSD_PRICES@DF_PRICES_ALL,1.0"
+CPI_COUNTRIES = (
+    "AUS+AUT+BEL+CAN+CHE+CHL+CZE+DEU+DNK+ESP+EST+FIN+FRA+GBR"
+    "+GRC+HUN+IRL+ISL+ISR+ITA+JPN+KOR+LTU+LUX+LVA+MEX+NLD+NOR"
+    "+NZL+POL+PRT+SVK+SVN+SWE+TUR+USA+COL+CRI+IDN"
+)
+# <COUNTRIES>.M.N.CPI.PA._T.N.GY
+CPI_KEY = f"{CPI_COUNTRIES}.M.N.CPI.PA._T.N.GY"
 
 
-def fetch_oecd_json(dataset: str, filter_key: str) -> pd.DataFrame:
-    url = OECD_JSON.format(dataset=dataset, filter=filter_key)
-    params = {"startTime": "2000-Q1", "dimensionAtObservation": "allDimensions"}
-    resp = fetch(url, params=params, timeout=60)
-    data = resp.json()
+def _parse_sdmx_json(data: dict) -> pd.DataFrame:
+    """
+    Parse OECD SDMX-JSON response (dimensionAtObservation=AllDimensions).
+    Returns DataFrame with columns: date, country, value.
+    """
+    structures = data.get("data", {}).get("structures") or data.get("structures", [])
+    if not structures:
+        return pd.DataFrame()
+    st = structures[0]
 
-    if "dataSets" not in data or not data["dataSets"]:
+    obs_dims = st["dimensions"].get("observation", [])
+    if not obs_dims:
         return pd.DataFrame()
 
-    ds = data["dataSets"][0]
-    structure = data["structure"]
+    # Build index: position -> list of value ids
+    dim_values: list[list[str]] = [
+        [v["id"] for v in dim.get("values", [])] for dim in obs_dims
+    ]
 
-    # Parse dimensions
-    dims = structure["dimensions"]["observation"]
-    time_dim = next((d for d in dims if d["id"] == "TIME_PERIOD"), None)
-    if time_dim is None:
+    # Find REF_AREA and TIME_PERIOD positions
+    ref_pos = next((d["keyPosition"] for d in obs_dims if d["id"] == "REF_AREA"), None)
+    time_pos = next((d["keyPosition"] for d in obs_dims if d["id"] == "TIME_PERIOD"), None)
+    if ref_pos is None or time_pos is None:
         return pd.DataFrame()
 
-    time_values = [t["id"] for t in time_dim["values"]]
+    ds = data["data"]["dataSets"][0]
+    observations = ds.get("observations", {})
 
     rows = []
-    for key, obs in ds.get("observations", {}).items():
-        parts = key.split(":")
-        # time index is last dimension
-        time_idx = int(parts[-1])
-        val = obs[0] if obs else None
-        if val is not None and time_idx < len(time_values):
-            # Decode other dimensions for country
-            country_idx = int(parts[0])
-            country_vals = dims[0]["values"]
-            country = country_vals[country_idx]["id"] if country_idx < len(country_vals) else "UNK"
-            rows.append({
-                "date": time_values[time_idx],
-                "country": country,
-                "value": float(val),
-            })
+    for key_str, obs_val in observations.items():
+        val = obs_val[0] if obs_val else None
+        if val is None:
+            continue
+        parts = key_str.split(":")
+        try:
+            country_idx = int(parts[ref_pos])
+            time_idx = int(parts[time_pos])
+            country = dim_values[ref_pos][country_idx]
+            date_str = dim_values[time_pos][time_idx]
+            rows.append({"date": date_str, "country": country, "value": float(val)})
+        except (IndexError, ValueError):
+            continue
 
     if not rows:
         return pd.DataFrame()
 
     df = pd.DataFrame(rows)
     df["date"] = pd.to_datetime(df["date"], errors="coerce", utc=True)
-    df = df.dropna(subset=["date"])
-    return df
+    return df.dropna(subset=["date"])
+
+
+def fetch_oecd(flow: str, key: str, start: str = "2000-01-01") -> pd.DataFrame:
+    """Fetch OECD data via SDMX REST API."""
+    url = f"{OECD_API}/{flow}/{key}"
+    params = {
+        "startPeriod": start,
+        "format": "jsondata",
+        "dimensionAtObservation": "AllDimensions",
+    }
+    resp = fetch(url, params=params, timeout=120)
+    return _parse_sdmx_json(resp.json())
 
 
 def main() -> None:
-    for name, cfg in OECD_DATASETS.items():
+    datasets = {
+        "GDP_Growth_1q": (GDP_FLOW, GDP_KEY, "2000-Q1"),
+        "CPI_Inflation_1m": (CPI_FLOW, CPI_KEY, "2000-01"),
+    }
+
+    for name, (flow, key, start) in datasets.items():
         print(f"Fetching OECD {name} ...")
         try:
-            df = fetch_oecd_json(cfg["dataset"], cfg["filter"])
+            df = fetch_oecd(flow, key, start)
             if df.empty:
                 print(f"  WARNING: no data for {name}")
                 continue
-
-            # Split by country and save
             for country, grp in df.groupby("country"):
                 grp = grp.set_index("date").sort_index()[["value"]]
                 save(grp, "macro", f"OECD_{name}_{country}.parquet")
-
         except Exception as exc:
             print(f"  WARNING: {name} — {exc}")
 
