@@ -35,6 +35,7 @@ GROUPS: dict[str, dict] = {
             "collectors/real_estate/real_estate.py",
             "collectors/geopolitical/wpr_index.py",
             "collectors/shipping/baltic_exchange.py",
+            "collectors/shipping/freightos.py",
         ],
         "workers": 3,  # FRED allows ~3 parallel requests safely
         "timeout": 180,
@@ -61,6 +62,7 @@ GROUPS: dict[str, dict] = {
         "scripts": [
             "collectors/options/cboe_vix.py",
             "collectors/options/deribit.py",
+            "collectors/options/options_flow.py",
         ],
         "workers": 2,
         "timeout": 150,
@@ -87,6 +89,7 @@ GROUPS: dict[str, dict] = {
         "scripts": [
             "collectors/fundamentals/sec_edgar.py",
             "collectors/fundamentals/simfin.py",
+            "collectors/fundamentals/insider_short.py",
         ],
         "workers": 1,
         "timeout": 300,
@@ -106,10 +109,19 @@ GROUPS: dict[str, dict] = {
             "collectors/sentiment/wikipedia_pageviews.py",
             "collectors/sentiment/reddit_wsb.py",
             "collectors/prediction_markets/polymarket.py",
+            "collectors/prediction_markets/kalshi.py",
+            "collectors/prediction_markets/manifold.py",
             "collectors/trade/comtrade.py",
         ],
         "workers": 2,
         "timeout": 150,
+    },
+    "environmental": {
+        "scripts": [
+            "collectors/environmental/environmental.py",
+        ],
+        "workers": 1,
+        "timeout": 180,
     },
 }
 
