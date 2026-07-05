@@ -261,6 +261,116 @@ def collect_nsidc_arctic_sea_ice() -> None:
     save(df, "environmental", "NSIDC_ArcticSeaIce_1m.parquet")
 
 
+
+# ---------------------------------------------------------------------------
+# 6. SIDC Solar Sunspot Number monthly (1749–present)
+# ---------------------------------------------------------------------------
+
+SIDC_SUNSPOT_URL = "https://www.sidc.be/SILSO/DATA/SN_m_tot_V2.0.txt"
+
+def collect_sidc_sunspots() -> None:
+    """Monthly international sunspot number from SIDC/SILSO (1749–present)."""
+    resp = fetch(SIDC_SUNSPOT_URL)
+    # Fixed-width: year month decimal_year sn_mean sn_std n_obs provisional
+    rows = []
+    for line in resp.text.splitlines():
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+        try:
+            year, month = int(parts[0]), int(parts[1])
+            sn = float(parts[3])
+            rows.append({"date": f"{year:04d}-{month:02d}-01", "sunspot_number": sn if sn >= 0 else pd.NA})
+        except ValueError:
+            continue
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"], utc=True, errors="coerce")
+    df = df.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
+    df = to_datetime_index(df, col="date")
+    save(df, "environmental", "SIDC_Sunspots_1m.parquet")
+
+
+# ---------------------------------------------------------------------------
+# 7. NOAA Palmer Drought Severity Index (PDSI) — US climate divisions, monthly
+# ---------------------------------------------------------------------------
+
+NOAA_PDSI_BASE = "https://www.ncei.noaa.gov/pub/data/cirs/climdiv/"
+NOAA_PDSI_PATTERN = "climdiv-pdsidv-v1.0.0-"
+
+def _find_pdsi_url() -> str:
+    """Resolve the latest PDSI file (filename includes datestamp)."""
+    resp = fetch(NOAA_PDSI_BASE)
+    import re
+    names = re.findall(r"climdiv-pdsidv-v1\.0\.0-\d{8}", resp.text)
+    if not names:
+        raise RuntimeError("Could not find PDSI filename on NCEI index page")
+    latest = sorted(names)[-1]
+    return NOAA_PDSI_BASE + latest
+
+def collect_noaa_pdsi() -> None:
+    """Monthly Palmer Drought Severity Index for US climate divisions (NOAA NCEI)."""
+    url = _find_pdsi_url()
+    resp = fetch(url)
+    # Format: SSDDDDYYYY followed by 12 monthly values (fixed-width space-separated)
+    # State(2) + Div(2) + Element(2) + Year(4) then 12 monthly values
+    rows = []
+    for line in resp.text.splitlines():
+        parts = line.split()
+        if len(parts) < 13:
+            continue
+        try:
+            code = parts[0]           # e.g. "0101051895"
+            year = int(code[-4:])
+            state_div = code[:4]
+            monthly = [float(v) for v in parts[1:13]]
+        except (ValueError, IndexError):
+            continue
+        for m_idx, val in enumerate(monthly, start=1):
+            if val in (-99.99, -9.99):
+                val = float("nan")
+            rows.append({"date": f"{year:04d}-{m_idx:02d}-01", "state_div": state_div, "pdsi": val})
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"], utc=True, errors="coerce")
+    df = df.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
+    # Aggregate to national monthly mean for a single time-series
+    nat = df.groupby("date", as_index=False)["pdsi"].mean().rename(columns={"pdsi": "pdsi_national_mean"})
+    nat = to_datetime_index(nat, col="date")
+    save(nat, "environmental", "NOAA_PDSI_National_1m.parquet")
+
+
+# ---------------------------------------------------------------------------
+# 8. US Wildfire statistics — NIFC annual (1983–present)
+# ---------------------------------------------------------------------------
+
+EPA_WILDFIRE_URL = "https://www.epa.gov/sites/default/files/2021-04/wildfires_fig-1.csv"
+
+def collect_us_wildfires() -> None:
+    """Annual US wildfire count and acres burned from EPA/NIFC (1983–2020)."""
+    resp = fetch(EPA_WILDFIRE_URL)
+    lines = resp.text.splitlines()
+    # Skip preamble rows until we hit the "Year," header
+    start = next((i for i, l in enumerate(lines) if l.strip().startswith("Year,")), None)
+    if start is None:
+        raise RuntimeError("Wildfire CSV header 'Year,' not found")
+    import io as _io
+    text = "\n".join(lines[start:])
+    df = pd.read_csv(_io.StringIO(text))
+    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+    # Rename columns for clarity
+    col_map = {c: c for c in df.columns}
+    if "national_interagency_fire_center" in df.columns:
+        col_map["national_interagency_fire_center"] = "fires_count"
+    if "forest_service_wildfire_statistics" in df.columns:
+        col_map["forest_service_wildfire_statistics"] = "acres_burned"
+    df = df.rename(columns=col_map)
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    df = df.dropna(subset=["year"])
+    df["date"] = pd.to_datetime(df["year"].astype(int).astype(str) + "-01-01", utc=True, errors="coerce")
+    df = df.drop(columns=["year"]).sort_values("date").reset_index(drop=True)
+    df = to_datetime_index(df, col="date")
+    save(df, "environmental", "US_Wildfires_Annual_1y.parquet")
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -271,6 +381,9 @@ _COLLECTORS: list[tuple[str, object]] = [
     ("NASA GISTEMP annual", collect_nasa_gistemp),
     ("OWID CO2 Emissions annual", collect_owid_co2),
     ("NSIDC Arctic Sea Ice monthly", collect_nsidc_arctic_sea_ice),
+    ("SIDC Sunspots monthly", collect_sidc_sunspots),
+    ("NOAA PDSI Drought monthly", collect_noaa_pdsi),
+    ("US Wildfires annual", collect_us_wildfires),
 ]
 
 
