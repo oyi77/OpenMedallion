@@ -1,103 +1,142 @@
 """
-Ethereum on-chain metrics collector.
-Source: Etherscan (free, no API key for basic stats) + blockchain.com ETH endpoints.
-Also uses: CoinGecko free API for ETH market cap history.
-Output: data/onchain/ETH_<metric>_1d.parquet
+Ethereum & multi-chain on-chain metrics collector.
+Sources:
+  - yfinance  — OHLCV price/volume (no key)
+  - blockchain.com charts API — BTC on-chain (tx count, hash rate, fees, etc.)
+  - DeFiLlama /v2/chains — TVL per chain (no key)
+  - DeFiLlama /v2/historicalChainTvl — historical TVL per chain
+Output: data/onchain/<symbol>_<metric>_1d.parquet
 """
 from __future__ import annotations
+
 import sys
-from pathlib import Path
 import time
+from pathlib import Path
 
 import pandas as pd
+import yfinance as yf
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from base import fetch, save
 
-# CoinGecko free API — ETH on-chain proxy metrics via market data
-COINGECKO_HISTORY = "https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-
-# Blockchain.info ETH stats (free)
-BLOCKCHAIN_ETH = "https://api.blockchain.info/charts/{chart}?timespan=all&format=json&sampled=true"
-
-BLOCKCHAIN_CHARTS = {
-    "ETH_TxCount_1d": "n-transactions",       # not ETH-specific but illustrative
+# ── yfinance tickers for major L1/L2 tokens ──────────────────────────────────
+YF_COINS: dict[str, str] = {
+    "ETH": "ETH-USD",
+    "SOL": "SOL-USD",
+    "BNB": "BNB-USD",
+    "ADA": "ADA-USD",
+    "AVAX": "AVAX-USD",
+    "DOT": "DOT-USD",
+    "LINK": "LINK-USD",
+    "ATOM": "ATOM-USD",
+    "MATIC": "MATIC-USD",
+    "UNI": "UNI-USD",
+    "NEAR": "NEAR-USD",
+    "ARB": "ARB-USD",
+    "OP": "OP-USD",
 }
 
-# CoinGecko provides: price, market_cap, total_volume for ETH
-CG_COINS = {
-    "ETH": "ethereum",
-    "SOL": "solana",
-    "BNB": "binancecoin",
-    "MATIC": "matic-network",
-    "ADA": "cardano",
-    "DOT": "polkadot",
-    "AVAX": "avalanche-2",
-    "LINK": "chainlink",
-    "UNI": "uniswap",
-    "ATOM": "cosmos",
+# ── blockchain.com chart API (BTC on-chain, fully free) ────────────────────
+BLOCKCHAIN_BASE = "https://api.blockchain.info/charts/{chart}"
+BLOCKCHAIN_CHARTS: dict[str, str] = {
+    "BTC_TxCount_1d": "n-transactions",
+    "BTC_TxFees_1d": "transaction-fees",
+    "BTC_HashRate_1d": "hash-rate",
+    "BTC_Difficulty_1d": "difficulty",
+    "BTC_UTXOCount_1d": "utxo-count",
+    "BTC_BlockSize_1d": "avg-block-size",
+    "BTC_MempoolSize_1d": "mempool-size",
+    "BTC_TxPerBlock_1d": "n-transactions-per-block",
+    "BTC_MarketCap_1d": "market-cap",
+    "BTC_TotalFees_1d": "miners-revenue",
 }
 
-# Glassnode free tier metrics via their public API (no key needed for basic)
-GLASSNODE_BASE = "https://api.glassnode.com/v1/metrics"
+# ── DeFiLlama ─────────────────────────────────────────────────────────────────
+DEFILLAMA_CHAINS = "https://api.llama.fi/v2/chains"
+DEFILLAMA_CHAIN_TVL = "https://api.llama.fi/v2/historicalChainTvl/{chain}"
 
-# Open blockchain stats — Etherscan public stats (no key for aggregates)
-ETHERSCAN_STATS = "https://api.etherscan.io/api"
+TRACKED_CHAINS = ["Ethereum", "BSC", "Solana", "Arbitrum", "Optimism",
+                  "Polygon", "Avalanche", "Base", "Tron", "Sui", "Aptos"]
 
 
-def fetch_coingecko_history(coin_id: str, days: int = 1825) -> dict[str, pd.DataFrame]:
-    """Fetch price, market_cap, volume history from CoinGecko."""
-    params = {"vs_currency": "usd", "days": days, "interval": "daily"}
-    resp = fetch(COINGECKO_HISTORY.format(coin_id=coin_id), params=params)
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+def fetch_yfinance_ohlcv(symbol: str, ticker: str, period: str = "max") -> None:
+    df = yf.download(ticker, period=period, interval="1d", progress=False, auto_adjust=True)
+    if df.empty:
+        print(f"  SKIP {ticker} — empty")
+        return
+    if hasattr(df.index, 'tz') and df.index.tz is None:
+        df.index = pd.DatetimeIndex(df.index).tz_localize("UTC")
+    else:
+        df.index = pd.DatetimeIndex(df.index).tz_convert("UTC")
+    # yfinance ≥ 0.2 returns MultiIndex columns — flatten to level-0
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = [c[0].lower() for c in df.columns]
+    else:
+        df.columns = [c.lower() if isinstance(c, str) else str(c[0]).lower() for c in df.columns]
+    df = df[["open", "close", "high", "low", "volume"]].dropna(how="all")
+    save(df, "onchain", f"{symbol}_OHLCV_1d.parquet")
+    print(f"  OK {symbol} — {len(df)} rows")
+
+
+def fetch_blockchain_chart(name: str, chart: str) -> None:
+    url = BLOCKCHAIN_BASE.format(chart=chart)
+    resp = fetch(url, params={"timespan": "all", "format": "json", "sampled": "true"}, timeout=30)
     data = resp.json()
+    values = data.get("values", [])
+    if not values:
+        print(f"  SKIP {name} — no data")
+        return
+    df = pd.DataFrame(values)
+    df["date"] = pd.to_datetime(df["x"], unit="s", utc=True)
+    df = df.set_index("date")[["y"]].rename(columns={"y": "value"}).sort_index()
+    save(df, "onchain", f"{name}.parquet")
+    print(f"  OK {name} — {len(df)} rows")
 
-    results = {}
-    for key in ["prices", "market_caps", "total_volumes"]:
-        if key not in data:
-            continue
-        records = [{"date": pd.Timestamp(ts, unit="ms", tz="UTC"), "value": val}
-                   for ts, val in data[key] if val is not None]
-        if records:
-            df = pd.DataFrame(records).set_index("date").sort_index()
-            results[key] = df
-    return results
+
+def fetch_defillama_chain_tvl(chain: str) -> None:
+    url = DEFILLAMA_CHAIN_TVL.format(chain=chain)
+    try:
+        resp = fetch(url, timeout=20)
+        records = resp.json()
+        if not isinstance(records, list) or not records:
+            return
+        df = pd.DataFrame(records)
+        df["date"] = pd.to_datetime(df["date"], unit="s", utc=True)
+        df = df.set_index("date")[["tvl"]].rename(
+            columns={"tvl": "tvl_usd"}
+        ).sort_index()
+        name = chain.replace(" ", "_")
+        save(df, "onchain", f"{name}_TVL_1d.parquet")
+        print(f"  OK {chain} TVL — {len(df)} rows")
+    except Exception as exc:
+        print(f"  WARN {chain} TVL — {exc}")
 
 
 def main() -> None:
-    for symbol, coin_id in CG_COINS.items():
-        print(f"Fetching {symbol} ({coin_id}) market metrics ...")
+    # 1. yfinance OHLCV for major L1/L2
+    print("=== yfinance crypto OHLCV ===")
+    for symbol, ticker in YF_COINS.items():
         try:
-            metrics = fetch_coingecko_history(coin_id)
-            name_map = {
-                "prices": f"{symbol}_Price_1d",
-                "market_caps": f"{symbol}_MarketCap_1d",
-                "total_volumes": f"{symbol}_Volume_1d",
-            }
-            for key, fname in name_map.items():
-                if key in metrics:
-                    save(metrics[key], "onchain", f"{fname}.parquet")
-            time.sleep(1.2)  # CoinGecko rate limit: ~50 req/min free
+            fetch_yfinance_ohlcv(symbol, ticker)
         except Exception as exc:
-            print(f"  WARNING: {symbol} — {exc}")
-            time.sleep(5)
+            print(f"  WARN {symbol} — {exc}")
 
-    # ETH-specific: gas price history via Etherscan (no key needed for some endpoints)
-    print("\nFetching ETH gas stats ...")
-    try:
-        resp = fetch(
-            ETHERSCAN_STATS,
-            params={"module": "stats", "action": "ethsupply", "apikey": "YourApiKeyToken"},
-            timeout=15,
-        )
-        # Supply is a single value — wrap as single-row
-        data = resp.json()
-        if data.get("status") == "1":
-            supply = float(data["result"]) / 1e18  # Wei to ETH
-            df = pd.DataFrame([{"value": supply}], index=[pd.Timestamp.utcnow().floor("D")])
-            df.index = pd.DatetimeIndex(df.index, tz="UTC")
-            save(df, "onchain", "ETH_Supply_snapshot.parquet")
-    except Exception as exc:
-        print(f"  WARNING: ETH supply — {exc}")
+    # 2. BTC on-chain via blockchain.com
+    print("\n=== BTC on-chain (blockchain.com) ===")
+    for name, chart in BLOCKCHAIN_CHARTS.items():
+        try:
+            fetch_blockchain_chart(name, chart)
+            time.sleep(0.5)
+        except Exception as exc:
+            print(f"  WARN {name} — {exc}")
+
+    # 3. DeFiLlama chain TVL history
+    print("\n=== DeFiLlama chain TVL ===")
+    for chain in TRACKED_CHAINS:
+        fetch_defillama_chain_tvl(chain)
+        time.sleep(0.3)
 
 
 if __name__ == "__main__":

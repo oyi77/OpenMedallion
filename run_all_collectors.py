@@ -1,251 +1,121 @@
 #!/usr/bin/env python3
-"""
-Run all OpenMedallion collectors in parallel batches.
-
-Usage:
-    python run_all_collectors.py                  # run all
-    python run_all_collectors.py --group macro    # run one group
-    python run_all_collectors.py --dry-run        # list what would run
-    python run_all_collectors.py --timeout 300    # per-script timeout (seconds)
-"""
-from __future__ import annotations
-
-import argparse
+"""Run all data collectors in parallel batches."""
 import subprocess
-import sys
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-ROOT = Path(__file__).resolve().parent
+COLLECTORS = [
+    # Core markets
+    "collectors/equities/yfinance_equities.py",
+    "collectors/etfs/yfinance_etfs.py",
+    "collectors/forex/fred_forex.py",
+    "collectors/commodities/yfinance_futures.py",
+    "collectors/indices/yfinance_indices.py",
+    "collectors/bonds/fred_bonds.py",
+    
+    # Macro & fundamentals
+    "collectors/macro/fred_macro.py",
+    "collectors/labor/labor_market.py",
+    "collectors/fundamentals/sec_edgar.py",
+    "collectors/fundamentals/insider_short.py",
+    "collectors/credit/credit_markets.py",
+    "collectors/central_bank/central_bank.py",
+    
+    # Crypto & DeFi
+    "collectors/crypto/cryptocompare.py",
+    "collectors/crypto/exchange_volumes.py",
+    "collectors/crypto/funding_rates.py",
+    "collectors/crypto/liquidations.py",
+    "collectors/crypto/open_interest.py",
+    "collectors/crypto/stablecoin_supply.py",
+    "collectors/onchain/eth_metrics.py",
+    "collectors/defi/protocol_fees.py",
+    
+    # Derivatives & Options
+    "collectors/derivatives/cboe_indices.py",
+    "collectors/derivatives/vix_term_structure.py",
+    "collectors/derivatives/skew_index.py",
+    "collectors/options/options_volume.py",
+    
+    # Alternative data
+    "collectors/sentiment/fear_greed_backfill.py",
+    "collectors/sentiment/google_trends.py",
+    "collectors/sentiment/stocktwits_volume.py",
+    "collectors/sentiment/reddit_wsb.py",
+    "collectors/geopolitical/wpr_index.py",
+    "collectors/sports/mlb_gamelogs.py",
+    "collectors/sports/nba_elo.py",
+    "collectors/sports/cricket_matches.py",
+    "collectors/environmental/environmental.py",
+    "collectors/weather/openmeteo.py",
+    
+    # Supply chain & trade
+    "collectors/supply_chain/supply_chain.py",
+    "collectors/trade/worldbank_trade.py",
+    "collectors/trade/fred_trade.py",
+    "collectors/shipping/baltic_exchange.py",
+    
+    # Energy & Agriculture
+    "collectors/energy/eia.py",
+    "collectors/energy/eia_inventories.py",
+    "collectors/agriculture/usda.py",
+    "collectors/agriculture/usda_commodities.py",
+    
+    # Factors & Real Estate
+    "collectors/factors/fama_french.py",
+    "collectors/factors/aqr_factors.py",
+    "collectors/real_estate/real_estate.py",
+    
+    # Prediction markets
+    "collectors/betting/sports_odds.py",
+]
 
-# Groups define run order and concurrency cap per group.
-# Scripts that share rate-limited APIs are placed in the same group
-# so they run sequentially within the group (max_workers=1 for that group)
-# while groups themselves run in parallel via the outer executor.
-GROUPS: dict[str, dict] = {
-    "fred_macro": {
-        "scripts": [
-            "collectors/macro/consumer_confidence.py",
-            "collectors/macro/housing_macro.py",
-            "collectors/central_bank/central_bank.py",
-            "collectors/credit/credit_markets.py",
-            "collectors/labor/labor_market.py",
-            "collectors/supply_chain/supply_chain.py",
-            "collectors/real_estate/real_estate.py",
-            "collectors/geopolitical/wpr_index.py",
-            "collectors/shipping/baltic_exchange.py",
-            "collectors/shipping/freightos.py",
-        ],
-        "workers": 3,  # FRED allows ~3 parallel requests safely
-        "timeout": 180,
-    },
-    "macro_intl": {
-        "scripts": [
-            "collectors/macro/imf_weo.py",
-            "collectors/macro/worldbank.py",
-            "collectors/macro/bis.py",
-            "collectors/macro/oecd.py",
-        ],
-        "workers": 2,
-        "timeout": 180,
-    },
-    "crypto_derivatives": {
-        "scripts": [
-            "collectors/derivatives/bybit.py",
-            "collectors/derivatives/okx.py",
-        ],
-        "workers": 2,
-        "timeout": 150,
-    },
-    "options_volatility": {
-        "scripts": [
-            "collectors/options/cboe_vix.py",
-            "collectors/options/deribit.py",
-            "collectors/options/options_flow.py",
-        ],
-        "workers": 2,
-        "timeout": 150,
-    },
-    "factors": {
-        "scripts": [
-            "collectors/factors/fama_french.py",
-            "collectors/factors/cftc_cot.py",
-            "collectors/factors/aqr_factors.py",
-        ],
-        "workers": 2,
-        "timeout": 120,
-    },
-    "defi_onchain": {
-        "scripts": [
-            "collectors/defi/protocol_fees.py",
-            "collectors/onchain/eth_metrics.py",
-            "collectors/onchain/sol_metrics.py",
-        ],
-        "workers": 1,  # CoinGecko rate-limits hard — serialize
-        "timeout": 150,
-    },
-    "fundamentals": {
-        "scripts": [
-            "collectors/fundamentals/sec_edgar.py",
-            "collectors/fundamentals/simfin.py",
-            "collectors/fundamentals/insider_short.py",
-        ],
-        "workers": 1,
-        "timeout": 300,
-    },
-    "market_data": {
-        "scripts": [
-            "collectors/forex/ecb_frankfurter.py",
-            "collectors/energy/eia.py",
-            "collectors/agriculture/usda.py",
-            "collectors/weather/openmeteo.py",
-        ],
-        "workers": 2,
-        "timeout": 150,
-    },
-    "alternative": {
-        "scripts": [
-            "collectors/sentiment/wikipedia_pageviews.py",
-            "collectors/sentiment/reddit_wsb.py",
-            "collectors/trade/comtrade.py",
-        ],
-        "workers": 2,
-        "timeout": 150,
-    },
-    "prediction_markets": {
-        "scripts": [
-            "collectors/prediction_markets/polymarket.py",
-            "collectors/prediction_markets/kalshi.py",
-            "collectors/prediction_markets/manifold.py",
-            "collectors/prediction_markets/hf_bulk.py",
-            "collectors/prediction_markets/sports_odds.py",
-        ],
-        "workers": 2,
-        "timeout": 600,
-    },
-    "environmental": {
-        "scripts": [
-            "collectors/environmental/environmental.py",
-        ],
-        "workers": 1,
-        "timeout": 180,
-    },
-    "bonds": {
-        "scripts": [
-            "collectors/bonds/fred_bonds.py",
-        ],
-        "workers": 1,
-        "timeout": 180,
-    },
-    "equities_indices": {
-        "scripts": [
-            "collectors/equities/yfinance_equities.py",
-            "collectors/indices/yfinance_indices.py",
-            "collectors/etfs/yfinance_etfs.py",
-        ],
-        "workers": 2,  # yfinance allows parallel but don't hammer
-        "timeout": 600,
-    },
-}
-
-
-def run_script(script: str, timeout: int) -> dict:
-    path = ROOT / script
-    if not path.exists():
-        return {"script": script, "status": "MISSING", "elapsed": 0, "output": ""}
-    t0 = time.monotonic()
+def run_collector(script: str) -> tuple[str, bool, str]:
+    """Run a single collector script."""
     try:
         result = subprocess.run(
-            [sys.executable, str(path)],
+            ["python3", script],
+            cwd=Path(__file__).parent,
             capture_output=True,
             text=True,
-            timeout=timeout,
-            cwd=ROOT,
+            timeout=300
         )
-        elapsed = time.monotonic() - t0
-        status = "OK" if result.returncode == 0 else f"FAIL({result.returncode})"
-        output = (result.stdout + result.stderr).strip()
-        return {"script": script, "status": status, "elapsed": elapsed, "output": output}
+        success = result.returncode == 0
+        output = result.stdout + result.stderr
+        return (script, success, output)
     except subprocess.TimeoutExpired:
-        elapsed = time.monotonic() - t0
-        return {"script": script, "status": "TIMEOUT", "elapsed": elapsed, "output": f"Killed after {timeout}s"}
-    except Exception as exc:
-        elapsed = time.monotonic() - t0
-        return {"script": script, "status": f"ERR({exc})", "elapsed": elapsed, "output": str(exc)}
+        return (script, False, "TIMEOUT")
+    except Exception as e:
+        return (script, False, str(e))
 
-
-def run_group(name: str, cfg: dict, verbose: bool) -> list[dict]:
-    scripts = cfg["scripts"]
-    workers = cfg.get("workers", 3)
-    timeout = cfg.get("timeout", 180)
-    results = []
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(run_script, s, timeout): s for s in scripts}
+def main():
+    print(f"Running {len(COLLECTORS)} collectors in parallel (max 8 workers)...\n")
+    
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(run_collector, c): c for c in COLLECTORS}
+        
+        completed = 0
+        failed = []
+        
         for future in as_completed(futures):
-            r = future.result()
-            results.append(r)
-            icon = "✓" if r["status"] == "OK" else "✗"
-            print(f"  [{name}] {icon} {r['script']} — {r['status']} ({r['elapsed']:.1f}s)")
-            if verbose and r["output"]:
-                for line in r["output"].splitlines()[-5:]:
-                    print(f"       {line}")
-    return results
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Run OpenMedallion collectors")
-    parser.add_argument("--group", help="Run a specific group only")
-    parser.add_argument("--dry-run", action="store_true", help="List scripts without running")
-    parser.add_argument("--timeout", type=int, default=0, help="Override per-script timeout")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Show script output tails")
-    parser.add_argument("--sequential", action="store_true", help="Run groups one at a time")
-    args = parser.parse_args()
-
-    groups = {k: v for k, v in GROUPS.items() if not args.group or k == args.group}
-    if not groups:
-        print(f"Unknown group: {args.group}. Available: {', '.join(GROUPS)}")
-        sys.exit(1)
-
-    if args.timeout:
-        for cfg in groups.values():
-            cfg["timeout"] = args.timeout
-
-    total_scripts = sum(len(v["scripts"]) for v in groups.values())
-    print(f"OpenMedallion collector run — {len(groups)} groups, {total_scripts} scripts")
-    if args.dry_run:
-        for name, cfg in groups.items():
-            print(f"\n[{name}] ({cfg['workers']} workers, {cfg['timeout']}s timeout)")
-            for s in cfg["scripts"]:
-                exists = "✓" if (ROOT / s).exists() else "✗ MISSING"
-                print(f"  {exists}  {s}")
-        return
-
-    t_start = time.monotonic()
-    all_results: list[dict] = []
-
-    if args.sequential:
-        for name, cfg in groups.items():
-            print(f"\n▶ Group: {name}")
-            all_results.extend(run_group(name, cfg, args.verbose))
-    else:
-        # Run groups in parallel (bounded by group-level worker counts)
-        with ThreadPoolExecutor(max_workers=len(groups)) as pool:
-            futures = {pool.submit(run_group, name, cfg, args.verbose): name for name, cfg in groups.items()}
-            for future in as_completed(futures):
-                all_results.extend(future.result())
-
-    elapsed_total = time.monotonic() - t_start
-    ok = sum(1 for r in all_results if r["status"] == "OK")
-    fails = [r for r in all_results if r["status"] != "OK"]
-
+            script, success, output = future.result()
+            completed += 1
+            
+            if success:
+                print(f"[{completed}/{len(COLLECTORS)}] ✓ {Path(script).name}")
+            else:
+                print(f"[{completed}/{len(COLLECTORS)}] ✗ {Path(script).name}")
+                failed.append((script, output))
+    
     print(f"\n{'='*60}")
-    print(f"Done in {elapsed_total:.0f}s — {ok}/{len(all_results)} scripts succeeded")
-    if fails:
-        print(f"\nFailed ({len(fails)}):")
-        for r in fails:
-            print(f"  {r['status']:20s} {r['script']}")
-
+    print(f"Completed: {len(COLLECTORS) - len(failed)}/{len(COLLECTORS)}")
+    
+    if failed:
+        print(f"\nFailed collectors ({len(failed)}):")
+        for script, output in failed:
+            print(f"  - {script}")
+            if "TIMEOUT" not in output:
+                print(f"    {output[:200]}")
 
 if __name__ == "__main__":
     main()
