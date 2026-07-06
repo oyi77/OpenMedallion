@@ -81,6 +81,7 @@ COLLECTORS = [
     # Fundamentals
     "collectors/fundamentals/insider_short.py",
     "collectors/fundamentals/sec_edgar.py",
+    "collectors/fundamentals/sec_form4_transactions.py",
     "collectors/fundamentals/simfin.py",
 
     # Geopolitical
@@ -119,6 +120,7 @@ COLLECTORS = [
     # Options
     "collectors/options/cboe_vix.py",
     "collectors/options/deribit.py",
+    "collectors/options/options_chains.py",
     "collectors/options/options_flow.py",
 
     # Prediction markets
@@ -135,18 +137,20 @@ COLLECTORS = [
     "collectors/real_estate/real_estate.py",
 
     # Sentiment
+    "collectors/sentiment/aaii_putcall.py",
     "collectors/sentiment/crypto_sentiment.py",
     "collectors/sentiment/fear_greed_backfill.py",
+    "collectors/sentiment/gdelt_themed.py",
     "collectors/sentiment/google_trends.py",
     "collectors/sentiment/news_sentiment.py",
     "collectors/sentiment/reddit_wsb.py",
     "collectors/sentiment/stocktwits_volume.py",
     "collectors/sentiment/wikipedia_pageviews.py",
-    "collectors/sentiment/aaii_putcall.py",
 
     # Shipping
     "collectors/shipping/baltic_exchange.py",
     "collectors/shipping/freightos.py",
+    "collectors/shipping/port_congestion.py",
 
     # Sports
     "collectors/sports/cricket_matches.py",
