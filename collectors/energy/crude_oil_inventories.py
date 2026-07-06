@@ -1,53 +1,96 @@
-#!/usr/bin/env python3
-"""EIA Crude Oil & Petroleum Inventories - Weekly data."""
-import pandas as pd
-from pathlib import Path
+"""
+EIA Crude Oil Inventories — Weekly (v2 API).
+Source: EIA Open Data API v2 (free key).
+Set env var EIA_API_KEY or pass --api-key. Get free key at https://www.eia.gov/opendata/register.php
+Covers: US weekly crude oil commercial stocks (WCESTUS1).
+Output: data/energy/crude_oil_inventories_1w.parquet
+"""
+from __future__ import annotations
+
+import os
 import sys
-sys.path.append(str(Path(__file__).parents[2]))
-from collectors.base import BaseFetcher, save_parquet
+from pathlib import Path
 
-class EIAInventoriesFetcher(BaseFetcher):
-    def fetch_crude_inventories(self):
-        """Fetch US Crude Oil Commercial Stocks (weekly)."""
-        url = "https://ir.eia.gov/wpsr/table9.csv"
-        df = pd.read_csv(url, skiprows=2)
-        df.columns = ['date', 'crude_stocks_mb']
-        df['date'] = pd.to_datetime(df['date'])
-        df = df.dropna().sort_values('date')
-        return df
+import pandas as pd
 
-    def fetch_gasoline_inventories(self):
-        """Fetch US Gasoline Stocks (weekly)."""
-        url = "https://ir.eia.gov/wpsr/table1.csv"
-        df = pd.read_csv(url, skiprows=2)
-        df.columns = ['date', 'gasoline_stocks_mb']
-        df['date'] = pd.to_datetime(df['date'])
-        df = df.dropna().sort_values('date')
-        return df
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from collectors.base import fetch, save, to_datetime_index
 
-    def fetch_distillate_inventories(self):
-        """Fetch US Distillate Fuel Oil Stocks (weekly)."""
-        url = "https://ir.eia.gov/wpsr/table5.csv"
-        df = pd.read_csv(url, skiprows=2)
-        df.columns = ['date', 'distillate_stocks_mb']
-        df['date'] = pd.to_datetime(df['date'])
-        df = df.dropna().sort_values('date')
-        return df
+EIA_V2_BASE = "https://api.eia.gov/v2"
+ROUTE = "petroleum/stoc/wstoc/data/"
+PAGE_SIZE = 5000
+
+
+def fetch_crude_inventories(api_key: str) -> pd.DataFrame:
+    """Fetch US crude oil commercial stocks (weekly) via EIA v2 API.
+
+    Pagination handles datasets larger than PAGE_SIZE rows.
+    Returns DataFrame indexed by UTC date with columns:
+      - inventory_barrels (thousand barrels)
+      - change_barrels   (week-over-week change, thousand barrels)
+    """
+    url = f"{EIA_V2_BASE}/{ROUTE}"
+    all_records: list[dict] = []
+    offset = 0
+
+    while True:
+        params = {
+            "api_key": api_key,
+            "frequency": "weekly",
+            "data[0]": "value",
+            "facets[product][]": "EPM0",
+            "facets[du][]": "NUS",
+            "sort[0][column]": "period",
+            "sort[0][direction]": "desc",
+            "offset": offset,
+            "length": PAGE_SIZE,
+        }
+        resp = fetch(url, params=params)
+        body = resp.json()
+
+        response = body.get("response", {})
+        rows = response.get("data", [])
+        if not rows:
+            break
+
+        all_records.extend(rows)
+        total = response.get("total", 0)
+        offset += PAGE_SIZE
+        if offset >= total:
+            break
+
+    if not all_records:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(all_records)
+
+    # Build clean DataFrame: date → inventory_barrels
+    df["date"] = pd.to_datetime(df["period"], utc=True, errors="coerce")
+    df["inventory_barrels"] = pd.to_numeric(df["value"], errors="coerce")
+    df = (
+        df[["date", "inventory_barrels"]]
+        .dropna()
+        .sort_values("date")
+        .set_index("date")
+    )
+
+    # Week-over-week change
+    df["change_barrels"] = df["inventory_barrels"].diff()
+
+    return df
+
+
+def main() -> None:
+    api_key = os.environ.get("EIA_API_KEY", "")
+    if not api_key:
+        print("WARNING: No EIA API key. Set EIA_API_KEY env var.")
+        print("         Get free key at https://www.eia.gov/opendata/register.php")
+        return
+
+    print("--- EIA Crude Oil Inventories (v2 API) ---")
+    df = fetch_crude_inventories(api_key)
+    save(df, "energy", "crude_oil_inventories_1w.parquet")
+
 
 if __name__ == "__main__":
-    fetcher = EIAInventoriesFetcher()
-    
-    # Crude
-    df = fetcher.fetch_crude_inventories()
-    save_parquet(df, "data/energy/EIA_Crude_Stocks_1w.parquet", "date")
-    print(f"OK EIA_Crude_Stocks_1w - {len(df)} rows")
-    
-    # Gasoline
-    df = fetcher.fetch_gasoline_inventories()
-    save_parquet(df, "data/energy/EIA_Gasoline_Stocks_1w.parquet", "date")
-    print(f"OK EIA_Gasoline_Stocks_1w - {len(df)} rows")
-    
-    # Distillate
-    df = fetcher.fetch_distillate_inventories()
-    save_parquet(df, "data/energy/EIA_Distillate_Stocks_1w.parquet", "date")
-    print(f"OK EIA_Distillate_Stocks_1w - {len(df)} rows")
+    main()

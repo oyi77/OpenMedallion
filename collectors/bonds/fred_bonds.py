@@ -2,8 +2,9 @@
 US and global bond market data via FRED + yfinance.
 Source: FRED (St. Louis Fed) + Yahoo Finance — no API key required
 Output: data/bonds/fred/<SERIES>_1d.parquet
+       data/bonds/us_treasury_yields_1d.parquet (consolidated)
 Covers:
-  - US Treasury yields (2Y, 5Y, 10Y, 30Y, 3M, 1Y)
+  - US Treasury yields (1Y, 2Y, 5Y, 10Y, 30Y)
   - TIPS yields / breakeven inflation
   - Yield spread (10Y-2Y, 10Y-3M)
   - Investment-grade / high-yield credit spreads
@@ -22,18 +23,19 @@ import requests
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from collectors.base import save, to_datetime_index
 
-_FRED_BASE = "https://api.stlouisfed.org/fred/series/observations"
 _SLEEP = 0.5
 
-# FRED series — all public, no API key workaround: use the free CSV endpoint
+
+# US Treasury yields — consolidated into single parquet with date/maturity/yield_pct
+_FRED_YIELDS: dict[str, str] = {
+    "DGS1":  "1Y",
+    "DGS2":  "2Y",
+    "DGS5":  "5Y",
+    "DGS10": "10Y",
+    "DGS30": "30Y",
+}
+# Non-treasury FRED series (TIPS, spreads, credit, mortgage, global sovereign)
 _FRED_SERIES: dict[str, str] = {
-    # US Treasuries
-    "DGS3MO":  "US_3M_Yield",
-    "DGS1":    "US_1Y_Yield",
-    "DGS2":    "US_2Y_Yield",
-    "DGS5":    "US_5Y_Yield",
-    "DGS10":   "US_10Y_Yield",
-    "DGS30":   "US_30Y_Yield",
     # TIPS / Breakeven
     "DFII5":   "US_5Y_TIPS_Yield",
     "DFII10":  "US_10Y_TIPS_Yield",
@@ -117,7 +119,29 @@ def _fetch_yf(ticker: str, label: str) -> pd.DataFrame | None:
         return None
 
 
+def _collect_treasury_yields() -> None:
+    """Fetch US Treasury yields and save as consolidated long-format parquet."""
+    print("  Fetching consolidated US Treasury yields...")
+    frames: list[pd.DataFrame] = []
+    for series_id, maturity in _FRED_YIELDS.items():
+        df = _fetch_fred_csv(series_id, f"yield_{maturity}")
+        if df is not None and not df.empty:
+            col = df.columns[0]
+            s = df[[col]].rename(columns={col: "yield_pct"})
+            s["maturity"] = maturity
+            frames.append(s)
+        time.sleep(_SLEEP)
+    if not frames:
+        print("  WARNING: no Treasury yield data fetched")
+        return
+    merged = pd.concat(frames)
+    merged.index.name = "date"
+    merged = merged[["maturity", "yield_pct"]]
+    save(merged, "bonds", "us_treasury_yields_1d.parquet")
+
+
 def collect_bonds() -> None:
+    _collect_treasury_yields()
     print(" Fetching FRED bond/yield series...")
     for series_id, label in _FRED_SERIES.items():
         df = _fetch_fred_csv(series_id, label)
@@ -125,12 +149,6 @@ def collect_bonds() -> None:
             save(df, "bonds/fred", f"{label}_1d.parquet")
         time.sleep(_SLEEP)
 
-    print(" Fetching bond ETFs via yfinance...")
-    for ticker, label in _YF_BONDS:
-        df = _fetch_yf(ticker, label)
-        if df is not None and not df.empty:
-            save(df, "bonds/fred", f"{label}_1d.parquet")
-        time.sleep(0.3)
 
 
 def main() -> None:

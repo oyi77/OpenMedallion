@@ -2,7 +2,7 @@
 GitHub stars as tech sentiment proxy.
 Source: GitHub REST API (no auth — 60 req/hr rate limit).
 Captures point-in-time snapshot: stars, forks, open_issues for tracked repos.
-Output: data/alternative/github_tech_stars_snapshot.parquet — date, repo, stars, forks, open_issues
+Output: data/alternative/github_stars_1d.parquet — date, repo, stars, forks, open_issues
 """
 from __future__ import annotations
 
@@ -88,7 +88,7 @@ def collect_github_stars() -> None:
 
     df = pd.DataFrame(rows)
     df = to_datetime_index(df, col="date")
-    save(df, "alternative", "github_tech_stars_snapshot.parquet")
+    save(df, "alternative", "github_stars_1d.parquet")
 
 
 def main() -> None:

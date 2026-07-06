@@ -1,7 +1,7 @@
 """
 Major global ETFs via yfinance.
 Source: Yahoo Finance (no API key required)
-Output: data/etfs/<SYMBOL>_1d.parquet  (OHLCV, daily)
+Output: data/etfs/yfinance_etfs_1d.parquet  (OHLCV + adj_close, daily)
 Covers: equity, bond, commodity, currency, volatility, sector, country ETFs
 """
 from __future__ import annotations
@@ -251,7 +251,7 @@ ETFS: list[tuple[str, str]] = [
 
 def _fetch(ticker: str, label: str) -> pd.DataFrame | None:
     try:
-        df = yf.download(ticker, start=_START, progress=False, auto_adjust=True)
+        df = yf.download(ticker, start=_START, progress=False, auto_adjust=False)
         if df.empty:
             return None
         if isinstance(df.columns, pd.MultiIndex):
@@ -259,6 +259,11 @@ def _fetch(ticker: str, label: str) -> pd.DataFrame | None:
         df.index = pd.to_datetime(df.index, utc=True)
         df.index.name = "date"
         df.columns = [c.lower().replace(" ", "_") for c in df.columns]
+        df["ticker"] = label
+        # reorder to: open, high, low, close, volume, adj_close
+        cols = ["open", "high", "low", "close", "volume", "adj_close"]
+        existing = [c for c in cols if c in df.columns]
+        df = df[existing + ["ticker"]]
         return df
     except Exception as exc:
         print(f"  WARNING {label}: {exc}")
@@ -266,11 +271,18 @@ def _fetch(ticker: str, label: str) -> pd.DataFrame | None:
 
 
 def collect_etfs() -> None:
+    frames: list[pd.DataFrame] = []
     for ticker, label in ETFS:
         df = _fetch(ticker, label)
         if df is not None and not df.empty:
-            save(df, "etfs", f"{label}_1d.parquet")
+            frames.append(df)
         time.sleep(_SLEEP)
+    if not frames:
+        print("  No ETF data fetched.")
+        return
+    combined = pd.concat(frames)
+    combined = combined.sort_index()
+    save(combined, "etfs", "yfinance_etfs_1d.parquet")
 
 
 def main() -> None:

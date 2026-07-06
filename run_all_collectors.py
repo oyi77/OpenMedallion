@@ -22,14 +22,15 @@ COLLECTORS = [
 
     # Central Bank
     "collectors/central_bank/central_bank.py",
+    "collectors/central_bank/central_bank_rates.py",
 
     # Commodities
     "collectors/commodities/rare_earths.py",
     "collectors/commodities/soft_commodities.py",
     "collectors/commodities/yfinance_futures.py",
 
-    # Credit
     "collectors/credit/credit_markets.py",
+    "collectors/credit/credit_spreads.py",
 
     # Crypto
     "collectors/crypto/coingecko_top200.py",
@@ -38,6 +39,8 @@ COLLECTORS = [
     "collectors/crypto/funding_rates.py",
     "collectors/crypto/liquidations.py",
     "collectors/crypto/open_interest.py",
+    "collectors/crypto/dex_volume.py",
+    "collectors/crypto/stablecoin_metrics.py",
     "collectors/crypto/stablecoin_supply.py",
 
     # DeFi
@@ -79,6 +82,7 @@ COLLECTORS = [
     "collectors/forex/fred_forex.py",
 
     # Fundamentals
+    "collectors/fundamentals/dividend_history.py",
     "collectors/fundamentals/insider_short.py",
     "collectors/fundamentals/sec_edgar.py",
     "collectors/fundamentals/sec_form4_transactions.py",
@@ -93,6 +97,9 @@ COLLECTORS = [
 
     # Labor
     "collectors/labor/labor_market.py",
+
+    # Misc
+    "collectors/misc/noaa_climate.py",
 
     # Macro
     "collectors/macro/asean_macro.py",
@@ -109,13 +116,15 @@ COLLECTORS = [
     "collectors/macro/indonesia_bps_macro.py",
     "collectors/macro/oecd.py",
     "collectors/macro/oecd_leading.py",
-    "collectors/macro/worldbank.py",
     "collectors/macro/worldbank_global.py",
+    "collectors/macro/us_births.py",
+    "collectors/macro/worldbank.py",
 
     # On-chain
     "collectors/onchain/bitcoin_metrics.py",
     "collectors/onchain/eth_metrics.py",
     "collectors/onchain/sol_metrics.py",
+    "collectors/onchain/bitcoin_network.py",
 
     # Options
     "collectors/options/cboe_vix.py",

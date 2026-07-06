@@ -3,14 +3,19 @@ Central bank policy rates and communication indices collector.
 Source: FRED API (free, no key required)
 Covers: Fed, ECB, BOJ, BOE, SNB, RBA, PBOC proxy rates; Fed communication metrics
 Output: data/central_bank/CB_<series>_1d.parquet
+        data/central_bank/central_bank_rates_1d.parquet (consolidated policy rates)
 """
 from __future__ import annotations
+
 import sys
+from io import StringIO
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pandas as pd
-from base import save, fetch
+
+from base import fetch, save, to_datetime_index
 
 FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={}"
 
@@ -47,16 +52,65 @@ SERIES = {
     "CB_Money_Velocity_M2_1q": "M2V",
 }
 
+# ---------------------------------------------------------------------------
+# Consolidated policy-rate series → single parquet
+# FRED series IDs for the four major central-bank policy rates
+# ---------------------------------------------------------------------------
+_RATE_SERIES: dict[str, str] = {
+    "FEDFUNDS": "Fed",
+    "ECBDFR": "ECB",           # ECB Deposit Facility Rate
+    "IUDSOIA": "BOE",          # Sterling Overnight Index Avg (BOE proxy)
+    "IRSTCI01JPM156N": "BOJ",  # Japan Policy Rate
+}
+
 
 def fetch_fred(series_id: str, value_col: str) -> pd.DataFrame:
     url = FRED_CSV.format(series_id)
     resp = fetch(url, timeout=30)
-    from io import StringIO
     df = pd.read_csv(StringIO(resp.text))
     df.columns = ["date", value_col]
     df = df[df[value_col] != "."].copy()
     df[value_col] = pd.to_numeric(df[value_col], errors="coerce")
     return df.dropna(subset=[value_col]).reset_index(drop=True)
+
+
+def _fetch_single_rate(series_id: str, label: str) -> pd.DataFrame | None:
+    """Download one FRED series and return with central_bank + rate_pct columns."""
+    try:
+        url = FRED_CSV.format(series_id)
+        resp = fetch(url, timeout=30)
+        df = pd.read_csv(StringIO(resp.text))
+        df.columns = ["date", "rate_pct"]
+        df = df[df["rate_pct"] != "."].copy()
+        df["rate_pct"] = pd.to_numeric(df["rate_pct"], errors="coerce")
+        df = df.dropna(subset=["rate_pct"])
+        df["date"] = pd.to_datetime(df["date"], utc=True)
+        df["central_bank"] = label
+        return df[["date", "central_bank", "rate_pct"]]
+    except Exception as exc:
+        print(f"  FAIL {series_id} ({label}): {exc}")
+        return None
+
+
+def collect_rates_consolidated() -> None:
+    """Fetch major CB policy rates into central_bank_rates_1d.parquet."""
+    frames: list[pd.DataFrame] = []
+    for series_id, label in _RATE_SERIES.items():
+        print(f"  Fetching {label} ({series_id})...", end=" ")
+        part = _fetch_single_rate(series_id, label)
+        if part is not None and not part.empty:
+            frames.append(part)
+            print(f"{len(part)} rows")
+        else:
+            print("empty/failed")
+    if not frames:
+        print("  WARNING: no rate data collected")
+        return
+    df = pd.concat(frames, ignore_index=True)
+    df = df.sort_values(["date", "central_bank"]).reset_index(drop=True)
+    df = to_datetime_index(df, col="date")
+    save(df, "central_bank", "central_bank_rates_1d.parquet")
+    print(f"  Consolidated rates: {len(df)} rows ({len(_RATE_SERIES)} banks)")
 
 
 def main() -> None:
@@ -74,6 +128,8 @@ def main() -> None:
         except Exception as exc:
             print(f"  WARNING: {series_id} - {exc}")
     print(f"\nDone: {ok}/{len(SERIES)} series collected")
+    print("\nCollecting consolidated policy rates...")
+    collect_rates_consolidated()
 
 
 if __name__ == "__main__":
