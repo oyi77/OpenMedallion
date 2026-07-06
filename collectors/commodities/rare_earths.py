@@ -29,8 +29,6 @@ SERIES: dict[str, str] = {
     "PZINCUSDM":   "zinc_usd_per_mt",           # IMF zinc monthly
     "PLEADUSDM":   "lead_usd_per_mt",           # IMF lead monthly
     "PIORECRUSDM": "iron_ore_usd_per_dmt",      # IMF iron ore monthly
-    "PCOALAUUSDM": "coal_australia_usd_per_mt", # Australian coal monthly
-    "PBANSOPUSDM": "banana_usd_per_mt",         # IMF banana (soft-commodity proxy)
 }
 
 

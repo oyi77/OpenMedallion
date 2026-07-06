@@ -16,30 +16,9 @@ from collectors.base import save
 
 # FRED series ID → filename label
 _SERIES = {
-    "PWHEAMTUSDM":    "wheat_price",
-    "PMAIZEUSDM":     "corn_price",
     "PRICENPQUSDM":   "rice_price",
-    "PSOYBUSDM":      "soybean_price",
-    "PSUNOUSDM":      "sunflower_price",
-    "PPALMOLUSDM":    "palm_oil_price",
     "PCOCOAUSDM":     "cocoa_price",
-    "PCOFFOTMUSDM":   "coffee_price",
-    "PSUGAISAUSDM":   "sugar_price",
-    "PBANSOPUSDM":    "banana_price",
-    "PCOTTINDUSDM":   "cotton_price",
-    "PRUBBINDM":      "rubber_price",
-    "PBEEFUSDM":      "beef_price",
-    "PPOULTUSDM":     "chicken_price",
-    "PSALMUSDM":      "salmon_price",
-    "PCOALAUUSDM":    "coal_price",
-    "PFOODINDEXM":    "food_index",
     "POILAPSPUSDM":   "olive_oil_price",
-    "WPU01":          "ppi_grains",
-    "WPU013":         "ppi_livestock",
-    "WPU015":         "ppi_dairy",
-    "WPU017":         "ppi_oilseeds",
-    "WPU021":         "ppi_grain_mill",
-    "WPU022":         "ppi_processed_foods",
     "PPOILUSDM":      "pork_price",
     "PPORKUSDM":      "pork_futures",
     "PLOGSKUSDM":     "logs_price",
@@ -50,7 +29,6 @@ _SERIES = {
 # Fallback IDs tried when the primary returns no data
 _FALLBACKS = {
     "PCOCOAUSDM":  "PCOCOUSDM",
-    "PRUBBINDM":   "PRUBBUSDM",
 }
 
 

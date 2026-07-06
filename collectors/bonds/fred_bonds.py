@@ -34,23 +34,15 @@ _FRED_YIELDS: dict[str, str] = {
     "DGS10": "10Y",
     "DGS30": "30Y",
 }
-# Non-treasury FRED series (TIPS, spreads, credit, mortgage, global sovereign)
+# Non-treasury FRED series (TIPS, breakeven, global sovereign)
 _FRED_SERIES: dict[str, str] = {
     # TIPS / Breakeven
     "DFII5":   "US_5Y_TIPS_Yield",
     "DFII10":  "US_10Y_TIPS_Yield",
     "T5YIE":   "US_5Y_Breakeven",
     "T10YIE":  "US_10Y_Breakeven",
-    # Spreads
-    "T10Y2Y":  "US_10Y_2Y_Spread",
-    "T10Y3M":  "US_10Y_3M_Spread",
-    # Credit Spreads
-    "BAMLH0A0HYM2": "HY_Credit_Spread",   # ICE BofA HY OAS
-    "BAMLC0A0CM":   "IG_Credit_Spread",   # ICE BofA IG OAS
-    "TEDRATE":      "TED_Spread",
-    # Mortgage
-    "MORTGAGE30US": "US_30Y_Mortgage",
-    "MORTGAGE15US": "US_15Y_Mortgage",
+    # TED spread (interbank risk — bonds context)
+    "TEDRATE": "TED_Spread",
     # Global sovereign (ECB / central bank sources proxied via FRED)
     "IRLTLT01DEM156N": "DE_10Y_Yield",
     "IRLTLT01GBM156N": "UK_10Y_Yield",
@@ -60,6 +52,7 @@ _FRED_SERIES: dict[str, str] = {
     "IRLTLT01AUM156N": "AU_10Y_Yield",
     "IRLTLT01CAM156N": "CA_10Y_Yield",
     "IRLTLT01CNM156N": "CN_10Y_Yield",
+    # Yield curve spreads belong here too (removed from credit_spreads which has OAS)
 }
 
 # Bond ETFs via yfinance

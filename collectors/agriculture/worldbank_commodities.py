@@ -11,7 +11,6 @@ from collectors.base import save
 _SERIES = {
     "PCOALAUUSDM": "coal_usd_mt",
     "PCOALBBAUSDM": "coal_bb_usd_mt",
-    "PNRGINDEXM": "energy_index",
     "PFOODINDEXM": "food_price_index",
     "PCEREALSINDEXM": "cereals_index",
     "PMETALINDEXM": "metals_index",
@@ -25,10 +24,7 @@ _SERIES = {
     "PBEEFUSDM": "beef_usd_kg",
     "PPOULTUSDM": "chicken_usd_kg",
     "PSALMUSDM": "salmon_usd_kg",
-    "PSUGAISAUSDM": "sugar_usd_kg",
-    "PCOFFOTMUSDM": "coffee_robusta_usd",
     "PCOCOUSDM": "cocoa_usd_mt",
-    "PCOTTINDUSDM": "cotton_usd_kg",
     "PRUBBINDM": "rubber_usd_kg",
     "PBANSOPUSDM": "banana_usd_mt",
 }

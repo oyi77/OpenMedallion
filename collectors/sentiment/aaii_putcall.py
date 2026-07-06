@@ -63,7 +63,6 @@ _AAII_PROXY: dict[str, str] = {
     "VIX_weekly":    "^VIX",
     "SPY_weekly":    "SPY",
     "QQQ_weekly":    "QQQ",
-    "SKEW_weekly":   "^SKEW",
 }
 
 
@@ -97,7 +96,6 @@ def fetch_aaii_proxy() -> None:
 # ---------------------------------------------------------------------------
 _FEAR_GREED: dict[str, str] = {
     "VIX":  "^VIX",
-    "SKEW": "^SKEW",
     "HYGH": "HYGH",
     "JNK":  "JNK",
     "GLD":  "GLD",
