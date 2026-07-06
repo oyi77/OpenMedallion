@@ -11,6 +11,7 @@ COLLECTORS = [
     "collectors/agriculture/indonesia_agri.py",
     "collectors/agriculture/worldbank_commodities.py",
     "collectors/agriculture/fred_agri_ppi.py",
+    "collectors/agriculture/fred_agri_series.py",
 
     # Alternative data
     "collectors/alternative/ais_vessel_counts.py",
@@ -45,6 +46,7 @@ COLLECTORS = [
     "collectors/crypto/stablecoin_supply.py",
     "collectors/crypto/stablecoin_metrics.py",
     "collectors/crypto/bitcoin_onchain.py",
+    "collectors/crypto/coingecko_coins.py",
 
     # DeFi
     "collectors/defi/protocol_fees.py",
@@ -66,6 +68,7 @@ COLLECTORS = [
     "collectors/environmental/environmental.py",
     "collectors/environmental/usgs_earthquakes.py",
     "collectors/environmental/noaa_climate_extended.py",
+    "collectors/environmental/noaa_state_temps.py",
 
     # Equities
     "collectors/equities/sea_equities.py",
@@ -148,6 +151,8 @@ COLLECTORS = [
     "collectors/prediction_markets/sports_odds.py",
     "collectors/real_estate/real_estate.py",
     "collectors/real_estate/fred_housing.py",
+    "collectors/real_estate/reit_prices.py",
+    "collectors/real_estate/zillow_metro.py",
 
     # Sentiment
     "collectors/sentiment/aaii_putcall.py",
@@ -172,6 +177,8 @@ COLLECTORS = [
     "collectors/sports/nfl_scores.py",
     "collectors/sports/nhl_scores.py",
     "collectors/sports/football_matches.py",
+    "collectors/sports/nba_teams.py",
+    "collectors/sports/f1_results.py",
 
     # Supply chain
     "collectors/supply_chain/supply_chain.py",
