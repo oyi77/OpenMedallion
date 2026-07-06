@@ -9,6 +9,8 @@ COLLECTORS = [
     "collectors/agriculture/usda.py",
     "collectors/agriculture/usda_commodities.py",
     "collectors/agriculture/indonesia_agri.py",
+    "collectors/agriculture/worldbank_commodities.py",
+    "collectors/agriculture/fred_agri_ppi.py",
 
     # Alternative data
     "collectors/alternative/ais_vessel_counts.py",
@@ -40,8 +42,9 @@ COLLECTORS = [
     "collectors/crypto/liquidations.py",
     "collectors/crypto/open_interest.py",
     "collectors/crypto/dex_volume.py",
-    "collectors/crypto/stablecoin_metrics.py",
     "collectors/crypto/stablecoin_supply.py",
+    "collectors/crypto/stablecoin_metrics.py",
+    "collectors/crypto/bitcoin_onchain.py",
 
     # DeFi
     "collectors/defi/protocol_fees.py",
@@ -60,8 +63,9 @@ COLLECTORS = [
     "collectors/energy/eia_ng_oil.py",
     "collectors/energy/energy_extended.py",
 
-    # Environmental
     "collectors/environmental/environmental.py",
+    "collectors/environmental/usgs_earthquakes.py",
+    "collectors/environmental/noaa_climate_extended.py",
 
     # Equities
     "collectors/equities/sea_equities.py",
@@ -91,6 +95,7 @@ COLLECTORS = [
     # Geopolitical
     "collectors/geopolitical/acled.py",
     "collectors/geopolitical/wpr_index.py",
+    "collectors/geopolitical/ucdp_conflict.py",
 
     # Indices
     "collectors/indices/yfinance_indices.py",
@@ -141,9 +146,8 @@ COLLECTORS = [
     "collectors/prediction_markets/metaculus_resolved.py",
     "collectors/prediction_markets/polymarket.py",
     "collectors/prediction_markets/sports_odds.py",
-
-    # Real estate
     "collectors/real_estate/real_estate.py",
+    "collectors/real_estate/fred_housing.py",
 
     # Sentiment
     "collectors/sentiment/aaii_putcall.py",
@@ -166,6 +170,8 @@ COLLECTORS = [
     "collectors/sports/mlb_gamelogs.py",
     "collectors/sports/nba_elo.py",
     "collectors/sports/nfl_scores.py",
+    "collectors/sports/nhl_scores.py",
+    "collectors/sports/football_matches.py",
 
     # Supply chain
     "collectors/supply_chain/supply_chain.py",
