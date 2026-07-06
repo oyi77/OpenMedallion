@@ -131,6 +131,22 @@ GROUPS: dict[str, dict] = {
         "workers": 1,
         "timeout": 180,
     },
+    "bonds": {
+        "scripts": [
+            "collectors/bonds/fred_bonds.py",
+        ],
+        "workers": 1,
+        "timeout": 180,
+    },
+    "equities_indices": {
+        "scripts": [
+            "collectors/equities/yfinance_equities.py",
+            "collectors/indices/yfinance_indices.py",
+            "collectors/etfs/yfinance_etfs.py",
+        ],
+        "workers": 2,  # yfinance allows parallel but don't hammer
+        "timeout": 600,
+    },
 }
 
 
