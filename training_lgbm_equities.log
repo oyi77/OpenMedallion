@@ -1,0 +1,17 @@
+
+============================================================
+Training LightGBM Baseline - EQUITIES
+============================================================
+
+Loading equities data from ~/.cache/huggingface/hub/datasets--oyi77--OpenMedallion/snapshots/006f38c73a17da4bd0953102713b6ea63356693d/data/training/ai/...
+Traceback (most recent call last):
+  File "/home/openclaw/projects/OpenMedallion/openmedallion-fints/scripts/train_lgbm.py", line 131, in <module>
+    main()
+    ~~~~^^
+  File "/home/openclaw/projects/OpenMedallion/openmedallion-fints/scripts/train_lgbm.py", line 53, in main
+    df = load_asset_class(
+        args.asset_class,
+        data_dir=args.data_dir,
+        min_rows=args.min_rows
+    )
+TypeError: load_asset_class() got multiple values for argument 'data_dir'

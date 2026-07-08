@@ -1,0 +1,13 @@
+{
+  "mae": 0.9905086187437423,
+  "rmse": 1.2986894778664637,
+  "direction_accuracy": 0.8856749311294766,
+  "hit_rate": 88.56749311294766,
+  "mape": 35052.13691344016,
+  "sharpe_ratio": 29.192624470540835,
+  "sortino_ratio": 3269.210097195146,
+  "profit_factor": 1426.0243962338698,
+  "max_drawdown": NaN,
+  "calmar_ratio": NaN,
+  "total_return": Infinity
+}
