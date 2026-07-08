@@ -36,7 +36,7 @@ COLLECTORS = [
     "collectors/credit/credit_spreads.py",
 
     # Crypto
-    "collectors/crypto/coingecko_top200.py",
+    "collectors/crypto/coingecko_top200_historical.py",
     "collectors/crypto/cryptocompare.py",
     "collectors/crypto/exchange_volumes.py",
     "collectors/crypto/funding_rates.py",

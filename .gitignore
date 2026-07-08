@@ -1,20 +1,117 @@
-# Dataset files — stored on HuggingFace, not GitHub
-data/
-
 # Python
 __pycache__/
-*.pyc
-*.pyo
-.venv/
-venv/
-*.egg-info/
-dist/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Secrets / env
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Model files (CRITICAL - these are large binary files)
+models/
+*.pkl
+*.joblib
+*.h5
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.bin
+*.onnx
+
+# Training artifacts
+logs/
+*.log
+runs/
+wandb/
+tensorboard/
+checkpoints/
+outputs/
+
+# Data files (raw and processed)
+data/raw/
+data/processed/
+*.csv
+*.parquet
+*.feather
+*.arrow
+
+# Cache directories
+.cache/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+huggingface_cache/
+transformers_cache/
+
+# Environment and secrets
 .env
-*.env
+.env.local
+*.key
+*.pem
+secrets.yaml
+credentials.json
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# Coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Documentation builds
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# Package builds
+*.tar.gz
+*.whl
