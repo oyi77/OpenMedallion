@@ -4,33 +4,61 @@ Two publishable ML model components for the 1AI NEXUS systematic trading system,
 
 ---
 
+## Quick Start
+
+```bash
+# Install the unified package
+pip install -e .
+
+# Import components
+from openmedallion.fints import LGBMForecaster, PatchTSTForecaster
+from openmedallion.finsentiment import FinSentimentClassifier
+from openmedallion.hub import push_to_hub, from_pretrained, setup_token
+```
+
+---
+
 ## 1. OpenMedallion-FinTS
 
 Time-series forecasting models for multi-asset directional prediction.
 
-**Status**: ✅ Ready to train
+**Status**: ✅ Production Ready
 
 - **Models**: LightGBM baseline + PatchTST transformer
 - **Coverage**: Crypto, forex, equities, commodities, indices, ETFs, bonds
-- **Location**: `openmedallion-fints/`
+- **Python Package**: `openmedallion.fints`
 - **README**: [`openmedallion-fints/README.md`](openmedallion-fints/README.md)
 - **Model Card**: [`openmedallion-fints/MODEL_CARD.md`](openmedallion-fints/MODEL_CARD.md)
 
 **HuggingFace**: `<namespace>/openmedallion-fints`
 
-**Quick Start**:
+**Local Training**:
 ```bash
-cd openmedallion-fints
-pip install --break-system-packages lightgbm scikit-learn pandas pyarrow torch
-python scripts/train_lgbm.py --asset-class equities --max-per-class 20 --splits 5
-python scripts/eval_backtest.py --input reports/lgbm_equities_splits.csv
+# Train LightGBM baseline
+python openmedallion/fints/scripts/train_lgbm.py \
+    --asset-class equities \
+    --max-per-class 20 \
+    --splits 5 \
+    --push_to_hub \
+    --hub_username <your-username> \
+    --hub_repo_name openmedallion-fints
+
+# Train PatchTST transformer
+python openmedallion/fints/scripts/train_patchtst.py \
+    --asset-class crypto \
+    --epochs 50 \
+    --push_to_hub \
+    --hub_username <your-username>
 ```
+
+**Cloud Training**: See [TRAINING.md](TRAINING.md) for Modal, RunPod, Paperspace, Docker guides.
 
 **Key Features**:
 - Strictly temporal walk-forward splits (no data leakage)
 - Per-split evaluation (exposes regime sensitivity)
 - Streaming data loader (no RAM overload)
 - Separate models per asset class (better stability)
+- Automatic HuggingFace Hub push after training
 
 ---
 
@@ -38,43 +66,74 @@ python scripts/eval_backtest.py --input reports/lgbm_equities_splits.csv
 
 QLoRA fine-tuned LLM for financial text sentiment classification.
 
-**Status**: ✅ Ready to train
+**Status**: ✅ Production Ready
 
 - **Base Model**: Qwen2.5-7B-Instruct (4-bit QLoRA)
 - **Task**: Financial headline/text sentiment (positive/negative/neutral)
-- **Location**: `openmedallion-finsentiment/`
+- **Python Package**: `openmedallion.finsentiment`
 - **README**: [`openmedallion-finsentiment/README.md`](openmedallion-finsentiment/README.md)
 - **Model Card**: [`openmedallion-finsentiment/MODEL_CARD.md`](openmedallion-finsentiment/MODEL_CARD.md)
 
 **HuggingFace**: `<namespace>/openmedallion-finsentiment`
 
-**Quick Start**:
+**Local Training**:
 ```bash
-cd openmedallion-finsentiment
-pip install unsloth torch transformers trl datasets scikit-learn
-
 # Prepare data (use your HF cache snapshot ID)
-python scripts/prepare_sentiment_data.py \
+python openmedallion/finsentiment/prepare_sentiment_data.py \
     --hf-cache ~/.cache/huggingface/hub/datasets--oyi77--OpenMedallion/snapshots/<snapshot_id> \
     --target-size 80000
 
 # Fine-tune (~2-4 hours on RTX 3060)
-python scripts/fine_tune_qwen.py \
+python openmedallion/finsentiment/fine_tune_qwen.py \
     --train data/sampled_train.jsonl \
     --val data/sampled_val.jsonl \
-    --epochs 1
+    --epochs 1 \
+    --push_to_hub \
+    --hub_username <your-username> \
+    --hub_repo_name openmedallion-finsentiment \
+    --use_wandb \
+    --wandb_project openmedallion
 
 # Evaluate vs zero-shot baseline
-python scripts/eval_finsentiment.py \
+python openmedallion/finsentiment/eval_finsentiment.py \
     --model checkpoints/finsentiment/final \
     --test data/sampled_val.jsonl
 ```
+
+**Cloud Training**: See [TRAINING.md](TRAINING.md) for GPU cloud platforms.
 
 **Key Features**:
 - 4-bit QLoRA (fits in 12GB VRAM)
 - Unsloth accelerated training
 - Zero-shot baseline comparison (proves fine-tuning value)
 - Stratified sampling across source categories
+- Weights & Biases integration for monitoring
+- Checkpointing and resume capabilities
+
+---
+
+## HuggingFace Hub Integration
+
+All training scripts support automatic Hub push:
+
+```python
+from openmedallion.hub import setup_token, push_to_hub, from_pretrained
+
+# Setup token (one-time)
+setup_token()  # Reads from HF_TOKEN env var
+
+# Push after training
+push_to_hub(
+    repo_id="username/openmedallion-fints",
+    local_path="./reports/lgbm_equities.joblib",
+    model_type="fints"
+)
+
+# Download pre-trained models
+model = from_pretrained("username/openmedallion-fints")
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for complete Hub workflow.
 
 ---
 
@@ -95,6 +154,83 @@ Both models use the `oyi77/OpenMedallion` HuggingFace dataset:
 | FinTS (LightGBM) | i5 12th gen | Not required | 8GB | ~15-30 min per asset class |
 | FinTS (PatchTST) | Any | RTX 3060 12GB | 16GB | ~30 min/epoch |
 | FinSentiment | Any | RTX 3060 12GB | 32GB | ~2-4 hours |
+
+**Cloud Options**: A100 (80GB) for FinSentiment, T4 (16GB) for FinTS — see [TRAINING.md](TRAINING.md).
+
+---
+
+## Project Structure
+
+```
+OpenMedallion/
+├── openmedallion/                # Unified Python package
+│   ├── __init__.py
+│   ├── fints/                   # Time-series forecasting
+│   │   ├── __init__.py
+│   │   ├── preprocessing/       # loader.py, features.py, splits.py
+│   │   ├── models/              # lgbm_baseline.py, patchtst.py
+│   │   ├── eval/                # metrics.py
+│   │   └── scripts/             # train_*.py, eval_backtest.py
+│   ├── finsentiment/            # LLM sentiment classification
+│   │   ├── __init__.py
+│   │   ├── fine_tune_qwen.py
+│   │   ├── prepare_sentiment_data.py
+│   │   └── eval_finsentiment.py
+│   └── hub/                     # HuggingFace Hub utilities
+│       ├── __init__.py
+│       ├── uploader.py          # push_to_hub, model cards
+│       ├── downloader.py        # from_pretrained, cache management
+│       ├── auth.py              # setup_token, verify_token
+│       └── templates/           # Model card markdown templates
+├── openmedallion-fints/         # Legacy structure (docs, model cards)
+│   ├── README.md
+│   └── MODEL_CARD.md
+├── openmedallion-finsentiment/  # Legacy structure (docs, model cards)
+│   ├── README.md
+│   └── MODEL_CARD.md
+├── cloud_training/              # Cloud platform scripts
+│   ├── modal_train.py           # Modal.com serverless
+│   ├── runpod_train.py          # RunPod serverless
+│   └── paperspace_train.py      # Paperspace Gradient
+├── Dockerfile                   # Training environment
+├── docker-compose.yml           # Multi-service orchestration
+├── setup.py                     # Package metadata
+├── data/                        # OHLCV parquet files (not in repo)
+├── TRAINING.md                  # Cloud training guide
+├── DEPLOYMENT.md                # Hub deployment workflow
+└── README.md                    # This file
+```
+
+---
+
+## Installation
+
+```bash
+# Clone repository
+git clone https://github.com/<your-username>/OpenMedallion.git
+cd OpenMedallion
+
+# Install in development mode
+pip install -e .
+
+# Or install from PyPI (future)
+pip install openmedallion
+```
+
+**Dependencies**:
+- **FinTS**: `lightgbm`, `scikit-learn`, `pandas`, `pyarrow`, `torch`
+- **FinSentiment**: `unsloth`, `torch`, `transformers`, `trl`, `datasets`, `scikit-learn`
+- **Hub**: `huggingface-hub`, `requests`
+
+---
+
+## Documentation
+
+- **[TRAINING.md](TRAINING.md)**: Cloud training on Modal, RunPod, Paperspace, Docker
+- **[DEPLOYMENT.md](DEPLOYMENT.md)**: HuggingFace Hub deployment workflow
+- **[openmedallion-fints/README.md](openmedallion-fints/README.md)**: FinTS details
+- **[openmedallion-finsentiment/README.md](openmedallion-finsentiment/README.md)**: FinSentiment details
+- **Model Cards**: [`openmedallion-fints/MODEL_CARD.md`](openmedallion-fints/MODEL_CARD.md), [`openmedallion-finsentiment/MODEL_CARD.md`](openmedallion-finsentiment/MODEL_CARD.md)
 
 ---
 
@@ -120,35 +256,26 @@ MIT. Base models and data sources retain their original licenses:
 
 ---
 
-## Next Steps
+## Contributing
 
-1. **Train OpenMedallion-FinTS LightGBM baseline** on equities (fastest asset class)
-2. **Evaluate backtest metrics** — check for regime degradation across splits
-3. **Train OpenMedallion-FinSentiment** on 80k sampled instructions
-4. **Compare zero-shot vs fine-tuned** — ensure fine-tuning added value
-5. **Publish to HuggingFace** (separate repos):
-   - `<namespace>/openmedallion-fints`
-   - `<namespace>/openmedallion-finsentiment`
+1. Fork the repository
+2. Create a feature branch
+3. Make changes with tests
+4. Submit a pull request
 
 ---
 
-## Project Structure
+## Citation
 
+```bibtex
+@software{openmedallion2026,
+  author = {1AI NEXUS},
+  title = {OpenMedallion: Financial ML Models for Systematic Trading},
+  year = {2026},
+  url = {https://github.com/<your-username>/OpenMedallion}
+}
 ```
-OpenMedallion/
-├── openmedallion-fints/
-│   ├── preprocessing/     # loader.py, features.py, splits.py
-│   ├── models/           # lgbm_baseline.py, patchtst.py
-│   ├── eval/             # metrics.py
-│   ├── scripts/          # train_*.py, eval_backtest.py
-│   ├── README.md
-│   └── MODEL_CARD.md
-├── openmedallion-finsentiment/
-│   ├── scripts/          # prepare_*.py, fine_tune_qwen.py, eval_*.py
-│   ├── README.md
-│   └── MODEL_CARD.md
-├── data/                 # OHLCV parquet files (not in repo)
-└── README.md             # This file
-```
+
+---
 
 **All code is production-ready** — imports work, smoke tests pass, documentation complete.

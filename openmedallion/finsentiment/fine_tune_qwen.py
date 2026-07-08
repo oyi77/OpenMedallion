@@ -149,9 +149,29 @@ def main():
                         help='Evaluation steps (default: 500)')
     parser.add_argument('--save-steps', type=int, default=500,
                         help='Save checkpoint steps (default: 500)')
+
+    parser.add_argument("--resume_from_checkpoint", type=str, default=None,
+                        help="Path to checkpoint to resume from (default: None)")
+
+    # Resume from checkpoint
+    parser.add_argument("--use_wandb", action="store_true",
+                        help="Enable Weights & Biases logging")
+    parser.add_argument("--wandb_project", type=str, default="openmedallion-finsentiment",
+                        help="W&B project name")
+    parser.add_argument("--wandb_run_name", type=str, default=None,
+                        help="W&B run name (optional)")
+    
+    # HuggingFace Hub integration
+    parser.add_argument("--push_to_hub", action="store_true",
+                        help="Push model to Hub after training")
+    parser.add_argument("--hub_username", type=str, default=None,
+                        help="Hub username (auto-detected if logged in)")
+    parser.add_argument("--hub_repo_name", type=str, default=None,
+                        help="Hub repo name (default: openmedallion-finsentiment-{timestamp})")
     
     args = parser.parse_args()
     
+    # Paths
     dataset_dir = Path(args.dataset_dir)
     output_dir = Path(args.output_dir)
     
@@ -160,6 +180,25 @@ def main():
     
     output_dir.mkdir(parents=True, exist_ok=True)
     
+
+# Initialize Weights & Biases if requested
+if args.use_wandb:
+    try:
+        import wandb
+        wandb.init(
+            project=args.wandb_project,
+            name=args.wandb_run_name,
+            config={
+                "model_name": args.model_name,
+                "batch_size": args.batch_size,
+                "learning_rate": args.learning_rate,
+                "num_epochs": args.num_epochs,
+                "max_seq_length": args.max_seq_length,
+            }
+        )
+    except ImportError:
+        print("Warning: wandb not available, continuing without W&B logging")
+        args.use_wandb = False
     print("=" * 60)
     print("OPENMEDALLION-FINSENTIMENT TRAINING")
     print("=" * 60)
@@ -298,8 +337,7 @@ def main():
         greater_is_better=False,
         fp16=False,
         bf16=True,
-        optim='paged_adamw_8bit',
-        report_to='none',
+        report_to="wandb" if args.use_wandb else "none",
         push_to_hub=False
     )
     
@@ -309,6 +347,7 @@ def main():
         model=model,
         args=training_args,
         train_dataset=tokenized_train,
+        resume_from_checkpoint=args.resume_from_checkpoint,
         eval_dataset=tokenized_val,
         data_collator=data_collator
     )
@@ -328,6 +367,38 @@ def main():
     print(f"\nSaving final model to {output_dir / 'final'}...")
     trainer.save_model(str(output_dir / 'final'))
     tokenizer.save_pretrained(str(output_dir / 'final'))
+    
+    # Push to HuggingFace Hub if requested
+    if args.push_to_hub:
+        print("\n" + "="*80)
+        print("PUSHING TO HUGGINGFACE HUB")
+        print("="*80)
+        
+        from openmedallion.hub import push_to_hub, setup_token
+        
+        # Setup authentication
+        hub_token = setup_token()
+        if not hub_token:
+            print("ERROR: HuggingFace token not found. Set HF_TOKEN environment variable.")
+            print("Skipping Hub push.")
+        else:
+            username = args.hub_username if args.hub_username else hub_token.split('_')[0]
+            repo_name = args.hub_repo_name
+            
+            print(f"Uploading model to {username}/{repo_name}...")
+            
+            try:
+                repo_url = push_to_hub(
+                    local_path=args.output_dir,
+                    repo_name=repo_name,
+                    username=username,
+                    repo_type='model',
+                    commit_message=f'FinSentiment Qwen model - {datetime.now().strftime("%Y-%m-%d %H:%M")}'
+                )
+                print(f"✓ Successfully pushed to: {repo_url}")
+            except Exception as e:
+                print(f"ERROR pushing to Hub: {e}")
+                print("Model saved locally but Hub push failed.")
     
     # Save training metrics
     metrics_path = output_dir / 'training_metrics.json'
