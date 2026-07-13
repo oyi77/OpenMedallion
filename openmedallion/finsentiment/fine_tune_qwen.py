@@ -67,34 +67,51 @@ def format_chat_prompt(text: str, label: str = None, tokenizer=None) -> str:
         prompt += "<|im_start|>assistant\n"
     
     return prompt
+def preprocess_function(examples: Dict, tokenizer, label_map: Dict[str, int], label_map_inv: Dict[int, str], max_length: int = 512):
 
-
-def preprocess_function(examples: Dict, tokenizer, label_map_inv: Dict[int, str], max_length: int = 512):
-    """
-    Preprocess dataset examples into tokenized chat format.
-    """
-    texts = []
+    """Preprocess batched examples by extracting user messages, formatting with chat template."""
+    # examples['messages'] is a list of message lists (batched)
+    # examples['label'] is a list of label strings (batched)
     
-    for i in range(len(examples['text'])):
-        text = examples['text'][i]
-        label_id = examples['label_id'][i]
+    texts = []
+    labels_list = []
+    
+    # Iterate over each example in the batch
+    for messages, label_str in zip(examples['messages'], examples['label']):
+        # Extract user message from the messages list
+        user_msg = next((m['content'] for m in messages if m['role'] == 'user'), None)
+        if user_msg is None:
+            user_msg = ""
+        
+        # Map string label to integer using label_map
+        label_id = label_map.get(label_str.lower(), 1)  # default to neutral (1)
+        
+        # Map integer label to string for prompt using label_map_inv
         label = label_map_inv[label_id]
         
-        prompt = format_chat_prompt(text, label, tokenizer)
-        texts.append(prompt)
+        # Format as chat with system prompt
+        chat = [
+            {"role": "system", "content": "You are a financial sentiment analysis assistant."},
+            {"role": "user", "content": user_msg},
+            {"role": "assistant", "content": label}
+        ]
+        
+        texts.append(chat)
+        labels_list.append(label_id)
     
-    # Tokenize
-    tokenized = tokenizer(
+    # Tokenize all texts in batch
+    tokenized = tokenizer.apply_chat_template(
         texts,
+        tokenize=True,
+        padding='max_length',
         truncation=True,
         max_length=max_length,
-        padding='max_length',
-        return_tensors='pt'
+        return_tensors=None,
+        return_dict=True
     )
     
-    # Set labels for causal LM (same as input_ids)
-    tokenized['labels'] = tokenized['input_ids'].clone()
-    
+    # Add labels
+    tokenized['labels'] = labels_list
     return tokenized
 
 
@@ -170,7 +187,29 @@ def main():
                         help="Hub repo name (default: openmedallion-finsentiment-{timestamp})")
     
     args = parser.parse_args()
-    
+
+    # Initialize Weights & Biases if requested
+    if args.use_wandb:
+        try:
+            import wandb
+            wandb.init(
+                project=args.wandb_project,
+                name=args.wandb_run_name,
+                config={
+                    "model": args.model_name,
+                    "lora_r": args.lora_r,
+                    "lora_alpha": args.lora_alpha,
+                    "batch_size": args.batch_size,
+                    "learning_rate": args.learning_rate,
+                    "epochs": args.epochs,
+                    "max_length": args.max_length,
+                }
+            )
+        except ImportError:
+            print("Warning: wandb not installed, skipping W&B logging")
+            args.use_wandb = False
+
+
     # Paths
     dataset_dir = Path(args.dataset_dir)
     output_dir = Path(args.output_dir)
@@ -181,28 +220,6 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     
 
-# Initialize Weights & Biases if requested
-if args.use_wandb:
-    try:
-        import wandb
-        wandb.init(
-            project=args.wandb_project,
-            name=args.wandb_run_name,
-            config={
-                "model_name": args.model_name,
-                "batch_size": args.batch_size,
-                "learning_rate": args.learning_rate,
-                "num_epochs": args.num_epochs,
-                "max_seq_length": args.max_seq_length,
-            }
-        )
-    except ImportError:
-        print("Warning: wandb not available, continuing without W&B logging")
-        args.use_wandb = False
-    print("=" * 60)
-    print("OPENMEDALLION-FINSENTIMENT TRAINING")
-    print("=" * 60)
-    print(f"Base model: {args.model_name}")
     print(f"Dataset: {dataset_dir}")
     print(f"Output: {output_dir}")
     print(f"LoRA config: r={args.lora_r}, alpha={args.lora_alpha}, dropout={args.lora_dropout}")
@@ -294,22 +311,22 @@ if args.use_wandb:
     print("\nPreprocessing datasets...")
     
     def preprocess_wrapper(examples):
-        return preprocess_function(examples, tokenizer, label_map_inv, args.max_length)
+                return preprocess_function(examples, tokenizer, label_map, label_map_inv, args.max_length)
     
     tokenized_train = dataset['train'].map(
         preprocess_wrapper,
         batched=True,
-        remove_columns=dataset['train'].column_names,
-        desc="Tokenizing train set"
+        batch_size=100,
+        remove_columns=["messages", "label"],
     )
     
     tokenized_val = dataset['validation'].map(
         preprocess_wrapper,
         batched=True,
-        remove_columns=dataset['validation'].column_names,
+        batch_size=100,
+        remove_columns=["messages", "label"],
         desc="Tokenizing validation set"
     )
-    
     # Data collator
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
@@ -347,7 +364,6 @@ if args.use_wandb:
         model=model,
         args=training_args,
         train_dataset=tokenized_train,
-        resume_from_checkpoint=args.resume_from_checkpoint,
         eval_dataset=tokenized_val,
         data_collator=data_collator
     )
@@ -357,7 +373,7 @@ if args.use_wandb:
     print("STARTING TRAINING")
     print("=" * 60)
     
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     
     print("\n" + "=" * 60)
     print("TRAINING COMPLETE")

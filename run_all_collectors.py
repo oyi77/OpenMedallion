@@ -57,6 +57,8 @@ COLLECTORS = [
     "collectors/derivatives/okx.py",
     "collectors/derivatives/skew_index.py",
     "collectors/derivatives/vix_term_structure.py",
+    "collectors/derivatives/equity_index_futures.py",
+    "collectors/derivatives/treasury_futures.py",
 
     # Energy
     "collectors/energy/crude_oil_inventories.py",
@@ -76,7 +78,8 @@ COLLECTORS = [
     "collectors/equities/asia_equities.py",
     "collectors/equities/indonesia_idx.py",
 
-    # ETFs
+    "collectors/equities/sp_index.py",
+
     "collectors/etfs/yfinance_etfs.py",
 
     # Factors
@@ -88,7 +91,9 @@ COLLECTORS = [
     "collectors/forex/ecb_frankfurter.py",
     "collectors/forex/fred_forex.py",
 
+    "collectors/forex/fx_futures.py",
     # Fundamentals
+
     "collectors/fundamentals/dividend_history.py",
     "collectors/fundamentals/insider_short.py",
     "collectors/fundamentals/sec_edgar.py",
@@ -127,6 +132,7 @@ COLLECTORS = [
     "collectors/macro/worldbank_global.py",
     "collectors/macro/us_births.py",
     "collectors/macro/worldbank.py",
+    "collectors/macro/sp_fundamentals.py",
 
     # On-chain
     "collectors/onchain/bitcoin_metrics.py",
