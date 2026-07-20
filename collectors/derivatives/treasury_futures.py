@@ -16,7 +16,8 @@ import yfinance as yf
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from collectors.base import save
 
-_START = "1990-01-01"
+from collectors.base import HISTORY_START
+_START = HISTORY_START or "1977-01-01"
 _SLEEP = 0.3
 
 # (yfinance_ticker, label)

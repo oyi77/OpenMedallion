@@ -11,7 +11,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from base import fetch, save
+from base import fetch, save, HISTORY_START
 
 OECD_API = "https://sdmx.oecd.org/public/rest/data"
 
@@ -92,8 +92,9 @@ def _parse_sdmx_json(data: dict) -> pd.DataFrame:
     return df.dropna(subset=["date"])
 
 
-def fetch_oecd(flow: str, key: str, start: str = "2000-01-01") -> pd.DataFrame:
+def fetch_oecd(flow: str, key: str, start: str = "") -> pd.DataFrame:
     """Fetch OECD data via SDMX REST API."""
+    start = start or HISTORY_START or "1960-01-01"
     url = f"{OECD_API}/{flow}/{key}"
     params = {
         "startPeriod": start,

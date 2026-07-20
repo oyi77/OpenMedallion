@@ -29,7 +29,8 @@ TICKERS: dict[str, str] = {
     "ZL=F": "soybean_oil",
 }
 
-START_DATE = "2000-01-01"
+from collectors.base import HISTORY_START
+START_DATE = HISTORY_START or "1990-01-01"
 
 
 def collect_soft_commodities() -> None:

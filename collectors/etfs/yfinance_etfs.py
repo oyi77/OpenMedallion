@@ -16,7 +16,8 @@ import yfinance as yf
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from collectors.base import save
 
-_START = "2000-01-01"
+from collectors.base import HISTORY_START
+_START = HISTORY_START or "1993-01-01"
 _SLEEP = 0.3
 
 # (symbol, label) pairs — publicly-traded ETFs, no key required

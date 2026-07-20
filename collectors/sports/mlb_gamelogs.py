@@ -17,7 +17,7 @@ import pandas as pd
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from collectors.base import save, to_datetime_index
+from collectors.base import save, to_datetime_index, HISTORY_START
 
 RETROSHEET_BASE = "https://www.retrosheet.org/gamelogs/"
 
@@ -36,8 +36,9 @@ _FIELD_MAP = {
     18: "game_duration_min",
 }
 
-_START_YEAR = 1990
-_END_YEAR   = 2024
+import datetime
+_START_YEAR = int(HISTORY_START[:4]) if HISTORY_START else 1880
+_END_YEAR   = datetime.date.today().year
 
 _UA = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "

@@ -14,7 +14,7 @@ import pandas as pd
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from collectors.base import save, to_datetime_index
+from collectors.base import save, to_datetime_index, HISTORY_START
 
 WIKI_API = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article"
 HEADERS = {
@@ -35,8 +35,10 @@ ARTICLES: dict[str, str] = {
     "Interest_rate": "Interest_rate",
 }
 
-START = "20150101"
-END = "20241201"
+import datetime
+_default_start = HISTORY_START.replace("-", "") if HISTORY_START else "20150101"
+START = _default_start
+END = datetime.date.today().strftime("%Y%m") + "01"
 
 
 def _fetch_monthly(article: str) -> pd.DataFrame:

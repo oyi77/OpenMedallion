@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from base import fetch, save
+from base import fetch, save, HISTORY_START
 
 OPENMETEO_HIST = "https://archive-api.open-meteo.com/v1/archive"
 
@@ -52,8 +52,9 @@ VARIABLES = [
 ]
 
 
-def fetch_weather(city: str, lat: float, lon: float, start: str = "2000-01-01") -> pd.DataFrame:
+def fetch_weather(city: str, lat: float, lon: float, start: str = "") -> pd.DataFrame:
     import datetime
+    start = start or HISTORY_START or "1940-01-01"
     # Archive API only has data up to ~2 days ago; today causes 400
     end = (datetime.date.today() - datetime.timedelta(days=2)).isoformat()
     params = {

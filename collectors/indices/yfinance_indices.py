@@ -15,7 +15,7 @@ import pandas as pd
 import yfinance as yf
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from collectors.base import save, to_datetime_index
+from collectors.base import save, to_datetime_index, HISTORY_START
 
 # (symbol, label) — yfinance tickers
 INDICES: list[tuple[str, str]] = [
@@ -62,7 +62,7 @@ INDICES: list[tuple[str, str]] = [
     ("^SP500-60", "SP500_RealEstate"),
 ]
 
-_START_DAILY = "2000-01-01"
+_START_DAILY = HISTORY_START or "1950-01-01"
 _SLEEP = 0.3  # be polite to Yahoo
 
 

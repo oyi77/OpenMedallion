@@ -21,6 +21,7 @@ DATA_ROOT = Path(os.environ.get("OM_DATA_DIR", REPO_ROOT / "data"))
 # Collector defaults — override via environment
 DEFAULT_COLLECTOR_TIMEOUT: int = int(os.environ.get("OM_COLLECTOR_TIMEOUT", "300"))
 DEFAULT_MAX_WORKERS: int = int(os.environ.get("OM_MAX_WORKERS", "8"))
+HISTORY_START: str = os.environ.get("OM_HISTORY_START", "")
 
 
 def repo_path(category: str, filename: str) -> Path:
