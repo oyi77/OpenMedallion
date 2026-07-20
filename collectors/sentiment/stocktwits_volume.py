@@ -19,7 +19,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from collectors.base import fetch, save, to_datetime_index
+from collectors.base import HISTORY_START, fetch, save, to_datetime_index
 
 _XLS_URL = "https://www.aaii.com/files/surveys/sentiment.xls"
 _NASDAQ_AAII_URL = "https://data.nasdaq.com/api/v3/datasets/AAII/AAII_SENTIMENT.csv"
@@ -122,7 +122,7 @@ def collect_aaii_sentiment() -> None:
     print("  Using SPY weekly returns as bull/bear sentiment proxy...")
     try:
         import yfinance as yf
-        spy = yf.download("SPY", start="2000-01-01", interval="1wk",
+        spy = yf.download("SPY", start=HISTORY_START or "2000-01-01", interval="1wk",
                           auto_adjust=True, progress=False)
         if spy.empty:
             raise ValueError("yfinance returned empty SPY data")

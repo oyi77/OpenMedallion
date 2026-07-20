@@ -21,7 +21,7 @@ import pandas as pd
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from collectors.base import save, to_datetime_index
+from collectors.base import HISTORY_START, save, to_datetime_index
 
 _SLEEP = 0.5
 
@@ -98,7 +98,7 @@ def _fetch_fred_csv(series_id: str, label: str) -> pd.DataFrame | None:
 
 def _fetch_yf(ticker: str, label: str) -> pd.DataFrame | None:
     try:
-        df = yf.download(ticker, start="2000-01-01", progress=False, auto_adjust=True)
+        df = yf.download(ticker, start=HISTORY_START or "2000-01-01", progress=False, auto_adjust=True)
         if df.empty:
             return None
         if isinstance(df.columns, pd.MultiIndex):

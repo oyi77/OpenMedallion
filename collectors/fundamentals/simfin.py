@@ -14,7 +14,7 @@ import argparse
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from base import fetch, save
+from base import HISTORY_START, fetch, save
 
 SIMFIN_BASE = "https://backend.simfin.com/api/v3"
 
@@ -40,7 +40,7 @@ def simfin_headers(api_key: str) -> dict:
 
 def fetch_statement(ticker: str, stmt_type: str, api_key: str, period: str = "quarterly") -> pd.DataFrame:
     url = f"{SIMFIN_BASE}/{STATEMENT_TYPES[stmt_type]}"
-    params = {"ticker": ticker, "period": period, "start": "2000-01-01"}
+    params = {"ticker": ticker, "period": period, "start": HISTORY_START or "2000-01-01"}
     headers = simfin_headers(api_key)
 
     resp = fetch(url, params=params)

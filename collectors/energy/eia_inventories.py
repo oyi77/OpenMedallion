@@ -21,7 +21,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from collectors.base import fetch, save
+from collectors.base import HISTORY_START, fetch, save
 
 FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}"
 
@@ -85,7 +85,7 @@ def _fetch_yfinance_energy() -> pd.DataFrame | None:
     try:
         raw = yf.download(
             list(ENERGY_FUTURES.keys()),
-            start="1990-01-01",
+            start=HISTORY_START or "1990-01-01",
             interval="1d",
             auto_adjust=True,
             progress=False,
@@ -163,7 +163,7 @@ def collect_natgas_storage() -> None:
     print("  Fetching yfinance natgas futures (NG=F) ...")
     try:
         import yfinance as yf
-        raw = yf.download(["NG=F"], start="1990-01-01", interval="1d",
+        raw = yf.download(["NG=F"], start=HISTORY_START or "1990-01-01", interval="1d",
                           auto_adjust=True, progress=False)
         if isinstance(raw.columns, pd.MultiIndex):
             close = raw["Close"]["NG=F"]
