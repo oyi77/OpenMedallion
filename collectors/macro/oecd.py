@@ -107,8 +107,8 @@ def fetch_oecd(flow: str, key: str, start: str = "") -> pd.DataFrame:
 
 def main() -> None:
     datasets = {
-        "GDP_Growth_1q": (GDP_FLOW, GDP_KEY, "2000-Q1"),
-        "CPI_Inflation_1m": (CPI_FLOW, CPI_KEY, "2000-01"),
+        "GDP_Growth_1q": (GDP_FLOW, GDP_KEY, ""),
+        "CPI_Inflation_1m": (CPI_FLOW, CPI_KEY, ""),
     }
 
     for name, (flow, key, start) in datasets.items():
