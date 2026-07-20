@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 import logging
 from pathlib import Path
@@ -12,9 +13,14 @@ import requests
 
 LOG = logging.getLogger(__name__)
 
-# Repo root is two levels up from this file (collectors/base.py -> repo root)
-REPO_ROOT = Path(__file__).resolve().parent.parent
-DATA_ROOT = REPO_ROOT / "data"
+# Root paths — override via environment variables
+_script_dir = Path(__file__).resolve().parent
+REPO_ROOT = Path(os.environ.get("OM_REPO_ROOT", _script_dir.parent))
+DATA_ROOT = Path(os.environ.get("OM_DATA_DIR", REPO_ROOT / "data"))
+
+# Collector defaults — override via environment
+DEFAULT_COLLECTOR_TIMEOUT: int = int(os.environ.get("OM_COLLECTOR_TIMEOUT", "300"))
+DEFAULT_MAX_WORKERS: int = int(os.environ.get("OM_MAX_WORKERS", "8"))
 
 
 def repo_path(category: str, filename: str) -> Path:

@@ -1,3 +1,10 @@
+# Docker log — rotate to avoid filling disk
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # FinSentiment Training (Qwen Fine-tuning)
   finsentiment-train:
@@ -6,6 +13,7 @@ services:
       dockerfile: Dockerfile
     image: openmedallion:latest
     container_name: openmedallion-finsentiment
+    logging: *default-logging
     runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
@@ -46,6 +54,7 @@ services:
       dockerfile: Dockerfile
     image: openmedallion:latest
     container_name: openmedallion-fints
+    logging: *default-logging
     runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
@@ -84,6 +93,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    logging: *default-logging
     image: openmedallion:latest
     container_name: openmedallion-dev
     runtime: nvidia
@@ -118,6 +128,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    logging: *default-logging
     image: openmedallion:latest
     container_name: openmedallion-jupyter
     runtime: nvidia

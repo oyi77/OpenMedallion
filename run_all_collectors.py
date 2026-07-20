@@ -1,8 +1,28 @@
 #!/usr/bin/env python3
-"""Run all data collectors in parallel batches."""
+"""Run all data collectors in parallel batches.
+
+Configuration via environment variables:
+    OM_COLLECTOR_TIMEOUT  — default per-collector timeout in seconds (default 300)
+    OM_MAX_WORKERS         — parallel worker count (default 8)
+
+Usage:
+    python run_all_collectors.py              # run all collectors
+    python run_all_collectors.py collectors/macro/fred_macro.py  # run one
+    python run_all_collectors.py --since -24h  # only re-run recently-changed scripts
+    python run_all_collectors.py --since 2026-07-01
+"""
+
+import argparse
+import os
 import subprocess
+import time as time_mod
+from datetime import datetime, timezone
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Configurable defaults
+_DEFAULT_TIMEOUT = int(os.environ.get("OM_COLLECTOR_TIMEOUT", "300"))
+_DEFAULT_WORKERS = int(os.environ.get("OM_MAX_WORKERS", "8"))
 
 COLLECTORS = [
     # Agriculture
@@ -203,6 +223,14 @@ COLLECTORS = [
     # Volatility
     "collectors/volatility/vol_surface.py",
 ]
+# Dependency graph (documentation only — NOT enforced at runtime).
+# Keys are collector paths, values are lists of collectors that should run
+# first because this collector consumes their output.
+DEPENDENCIES: dict[str, list[str]] = {
+#   "collectors/macro/fred_bonds.py": ["collectors/macro/fred_macro.py"],
+#   "collectors/rates/term_rates.py":  ["collectors/macro/fred_macro.py"],
+}
+
 
 # Per-collector timeout overrides (seconds).
 # Unlisted collectors use the default 300s = 5 min.
@@ -239,7 +267,7 @@ TIMEOUT_PROFILES: dict[str, int] = {
 }
 
 
-def _lookup_timeout(script: str, default: int = 300) -> int:
+def _lookup_timeout(script: str, default: int = _DEFAULT_TIMEOUT) -> int:
     """Return the longest-matching timeout profile for *script*."""
     stem = Path(script).stem  # e.g. "yfinance_equities"
     best = default
@@ -249,7 +277,7 @@ def _lookup_timeout(script: str, default: int = 300) -> int:
     return best
 
 
-def run_collector(script: str, timeout: int = 300) -> tuple[str, bool, str]:
+def run_collector(script: str, timeout: int = _DEFAULT_TIMEOUT) -> tuple[str, bool, str]:
     """Run a single collector script, capture output."""
     try:
         result = subprocess.run(
@@ -268,30 +296,61 @@ def run_collector(script: str, timeout: int = 300) -> tuple[str, bool, str]:
         return (script, False, str(exc))
 
 
+def _parse_since(value: str) -> float:
+    """Parse --since arg into a Unix timestamp cutoff."""
+    if value.startswith("-"):
+        import re
+        m = re.match(r"-(\d+)([hdw])", value)
+        if m:
+            n, unit = int(m.group(1)), m.group(2)
+            mult = {"h": 3600, "d": 86400, "w": 604800}
+            return time_mod.time() - n * mult[unit]
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+        try:
+            dt = datetime.strptime(value, fmt)
+            return dt.replace(tzinfo=timezone.utc).timestamp()
+        except ValueError:
+            continue
+    raise ValueError(f"Can't parse --since: {value!r}")
+
+
 def main() -> None:
-    print(f"Running {len(COLLECTORS)} collectors in parallel (max 8 workers)...\n")
+    parser = argparse.ArgumentParser(description="Run data collectors.")
+    parser.add_argument("--since", help="Only run scripts modified since this time (ISO date, -Nh, -Nd, -Nw)")
+    parser.add_argument("collector", nargs="?", help="Run a single collector script path")
+    args = parser.parse_args()
+
+    collectors = [args.collector] if args.collector else list(COLLECTORS)
+
+    if args.since:
+        cutoff = _parse_since(args.since)
+        collectors = [c for c in collectors if Path(c).stat().st_mtime >= cutoff]
+        if not collectors:
+            print("No collectors modified since the given time.")
+            return
+
+    print(f"Running {len(collectors)} collectors in parallel (max {_DEFAULT_WORKERS} workers)...\n")
     failed: list[tuple[str, str]] = []
     completed = 0
 
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        futures = {pool.submit(run_collector, s, _lookup_timeout(s)): s for s in COLLECTORS}
+    with ThreadPoolExecutor(max_workers=_DEFAULT_WORKERS) as pool:
+        futures = {pool.submit(run_collector, s, _lookup_timeout(s)): s for s in collectors}
         for future in as_completed(futures):
             script, success, output = future.result()
             completed += 1
             status = "✓" if success else "✗"
-            print(f"[{completed:3d}/{len(COLLECTORS)}] {status} {Path(script).name}")
+            print(f"[{completed:3d}/{len(collectors)}] {status} {Path(script).name}")
             if not success:
                 failed.append((script, output))
 
     print(f"\n{'='*60}")
-    print(f"Completed: {len(COLLECTORS) - len(failed)}/{len(COLLECTORS)}")
+    print(f"Completed: {len(collectors) - len(failed)}/{len(collectors)}")
 
     if failed:
         print(f"\nFailed collectors ({len(failed)}):")
         for script, output in failed:
             print(f"  - {script}")
             if "TIMEOUT" not in output:
-                # Show last meaningful line of error
                 lines = [l.strip() for l in output.splitlines() if l.strip()]
                 if lines:
                     print(f"    {lines[-1][:200]}")
