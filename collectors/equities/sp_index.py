@@ -14,7 +14,7 @@ import pandas as pd
 import yfinance as yf
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from collectors.base import save
+from collectors.base import HISTORY_START, save
 
 INDICES: list[tuple[str, str]] = [
     ("^GSPC", "SP500_INDEX"),
@@ -24,7 +24,7 @@ INDICES: list[tuple[str, str]] = [
     ("^VIX",  "VIX_INDEX"),
 ]
 
-_START = "1920-01-01"
+_START = HISTORY_START or "1920-01-01"
 _SLEEP = 0.3
 
 
