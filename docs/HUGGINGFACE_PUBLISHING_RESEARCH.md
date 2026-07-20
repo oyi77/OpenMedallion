@@ -400,8 +400,8 @@ pipeline_tag: text-classification
 
 ## Next Steps
 
-1. Update `openmedallion-fints/MODEL_CARD.md` with YAML frontmatter and restructured sections
-2. Update `openmedallion-finsentiment/MODEL_CARD.md` with YAML frontmatter and restructured sections
+1. Update `model_cards/FINTS_LGBM_MODEL_CARD.md` with YAML frontmatter and restructured sections
+2. Update `model_cards/FINSENTIMENT_MODEL_CARD.md` with YAML frontmatter and restructured sections
 3. Train models and capture actual metrics for model cards
 4. Publish to HuggingFace Hub: `<namespace>/openmedallion-fints` and `<namespace>/openmedallion-finsentiment`
 5. (Optional) Create model collection linking both models

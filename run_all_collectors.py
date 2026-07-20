@@ -204,6 +204,50 @@ COLLECTORS = [
     "collectors/volatility/vol_surface.py",
 ]
 
+# Per-collector timeout overrides (seconds).
+# Unlisted collectors use the default 300s = 5 min.
+TIMEOUT_PROFILES: dict[str, int] = {
+    # Heavy API pulls
+    "yfinance": 600,
+    "simfin": 600,
+    "sec_edgar": 600,
+    "sec_form4": 600,
+    # Crypto — many coins / deep history
+    "coingecko_top200": 600,
+    "cryptocompare": 600,
+    # Prediction markets — multiple endpoints
+    "polymarket": 600,
+    "metaculus": 600,
+    "kalshi": 600,
+    "kalshi_history": 600,
+    "manifold": 600,
+    "manifold_history": 600,
+    "hf_bulk": 600,
+    # Shipping — multi-source aggregation
+    "baltic": 600,
+    "freightos": 600,
+    # Geo-political — heavy payloads
+    "acled": 600,
+    "ucdp_conflict": 600,
+    # Macro — many indicators
+    "imf_weo": 600,
+    "worldbank": 600,
+    # On-chain — large blockchain data pulls
+    "bitcoin_metrics": 600,
+    "eth_metrics": 600,
+    "sol_metrics": 600,
+}
+
+
+def _lookup_timeout(script: str, default: int = 300) -> int:
+    """Return the longest-matching timeout profile for *script*."""
+    stem = Path(script).stem  # e.g. "yfinance_equities"
+    best = default
+    for key, value in TIMEOUT_PROFILES.items():
+        if key in stem and value > best:
+            best = value
+    return best
+
 
 def run_collector(script: str, timeout: int = 300) -> tuple[str, bool, str]:
     """Run a single collector script, capture output."""
@@ -230,7 +274,7 @@ def main() -> None:
     completed = 0
 
     with ThreadPoolExecutor(max_workers=8) as pool:
-        futures = {pool.submit(run_collector, s): s for s in COLLECTORS}
+        futures = {pool.submit(run_collector, s, _lookup_timeout(s)): s for s in COLLECTORS}
         for future in as_completed(futures):
             script, success, output = future.result()
             completed += 1

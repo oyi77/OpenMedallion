@@ -26,9 +26,8 @@ Time-series forecasting models for multi-asset directional prediction.
 
 - **Models**: LightGBM baseline + PatchTST transformer
 - **Coverage**: Crypto, forex, equities, commodities, indices, ETFs, bonds
-- **Python Package**: `openmedallion.fints`
-- **README**: [`openmedallion-fints/README.md`](openmedallion-fints/README.md)
-- **Model Card**: [`openmedallion-fints/MODEL_CARD.md`](openmedallion-fints/MODEL_CARD.md)
+- **README**: [`model_cards/FINTS_LGBM_MODEL_CARD.md`](model_cards/FINTS_LGBM_MODEL_CARD.md)
+- **Model Cards**: [`FINTS_LGBM_MODEL_CARD.md`](model_cards/FINTS_LGBM_MODEL_CARD.md), [`FINTS_PATCHTST_MODEL_CARD.md`](model_cards/FINTS_PATCHTST_MODEL_CARD.md)
 
 **HuggingFace**: `<namespace>/openmedallion-fints`
 
@@ -70,9 +69,8 @@ QLoRA fine-tuned LLM for financial text sentiment classification.
 
 - **Base Model**: Qwen2.5-7B-Instruct (4-bit QLoRA)
 - **Task**: Financial headline/text sentiment (positive/negative/neutral)
-- **Python Package**: `openmedallion.finsentiment`
-- **README**: [`openmedallion-finsentiment/README.md`](openmedallion-finsentiment/README.md)
-- **Model Card**: [`openmedallion-finsentiment/MODEL_CARD.md`](openmedallion-finsentiment/MODEL_CARD.md)
+- **README**: [`model_cards/FINSENTIMENT_MODEL_CARD.md`](model_cards/FINSENTIMENT_MODEL_CARD.md)
+- **Model Card**: [`FINSENTIMENT_MODEL_CARD.md`](model_cards/FINSENTIMENT_MODEL_CARD.md)
 
 **HuggingFace**: `<namespace>/openmedallion-finsentiment`
 
@@ -182,12 +180,6 @@ OpenMedallion/
 │       ├── downloader.py        # from_pretrained, cache management
 │       ├── auth.py              # setup_token, verify_token
 │       └── templates/           # Model card markdown templates
-├── openmedallion-fints/         # Legacy structure (docs, model cards)
-│   ├── README.md
-│   └── MODEL_CARD.md
-├── openmedallion-finsentiment/  # Legacy structure (docs, model cards)
-│   ├── README.md
-│   └── MODEL_CARD.md
 ├── cloud_training/              # Cloud platform scripts
 │   ├── modal_train.py           # Modal.com serverless
 │   ├── runpod_train.py          # RunPod serverless
@@ -227,10 +219,9 @@ pip install openmedallion
 ## Documentation
 
 - **[TRAINING.md](TRAINING.md)**: Cloud training on Modal, RunPod, Paperspace, Docker
-- **[DEPLOYMENT.md](DEPLOYMENT.md)**: HuggingFace Hub deployment workflow
-- **[openmedallion-fints/README.md](openmedallion-fints/README.md)**: FinTS details
-- **[openmedallion-finsentiment/README.md](openmedallion-finsentiment/README.md)**: FinSentiment details
-- **Model Cards**: [`openmedallion-fints/MODEL_CARD.md`](openmedallion-fints/MODEL_CARD.md), [`openmedallion-finsentiment/MODEL_CARD.md`](openmedallion-finsentiment/MODEL_CARD.md)
+- **[model_cards/FINTS_LGBM_MODEL_CARD.md](model_cards/FINTS_LGBM_MODEL_CARD.md)** — FinTS model documentation
+- **[model_cards/FINTS_PATCHTST_MODEL_CARD.md](model_cards/FINTS_PATCHTST_MODEL_CARD.md)** — PatchTST model documentation
+- **[model_cards/FINSENTIMENT_MODEL_CARD.md](model_cards/FINSENTIMENT_MODEL_CARD.md)** — FinSentiment model documentation
 
 ---
 

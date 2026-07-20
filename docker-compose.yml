@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # FinSentiment Training (Qwen Fine-tuning)
   finsentiment-train:
@@ -17,19 +15,18 @@ services:
       - TOKENIZERS_PARALLELISM=false
     volumes:
       - ./openmedallion:/workspace/openmedallion
-      - ./openmedallion-finsentiment:/workspace/openmedallion-finsentiment
       - ./data:/workspace/data
+      - ./trained_models:/workspace/trained_models
       - hf-cache:/root/.cache/huggingface
-      - model-cache:/workspace/models
-    working_dir: /workspace/openmedallion-finsentiment
+    working_dir: /workspace
     command: >
       bash -c "
       echo 'Preparing sentiment dataset...' &&
-      python prepare_sentiment_data.py &&
+      python openmedallion/finsentiment/prepare_sentiment_data.py &&
       echo 'Starting Qwen fine-tuning...' &&
-      python fine_tune_qwen.py --model_name Qwen/Qwen2.5-7B-Instruct --num_epochs 3 --batch_size 4 --learning_rate 2e-4 --max_seq_length 512 --output_dir ./qwen_financial_sentiment &&
+      python openmedallion/finsentiment/fine_tune_qwen.py --model_name Qwen/Qwen2.5-7B-Instruct --num_epochs 3 --batch_size 4 --learning_rate 2e-4 --max_seq_length 512 --output_dir ./trained_models/finsentiment/qwen_financial_sentiment &&
       echo 'Training complete. Pushing to Hub...' &&
-      python -c 'from openmedallion.hub import push_to_hub, setup_token; setup_token(); push_to_hub(\"./qwen_financial_sentiment\", \"${HF_USERNAME:-openmedallion}/qwen-financial-sentiment\", model_type=\"finsentiment\")'
+      python -c 'from openmedallion.hub import push_to_hub, setup_token; setup_token(); push_to_hub(\"./trained_models/finsentiment/qwen_financial_sentiment\", \"${HF_USERNAME:-openmedallion}/qwen-financial-sentiment\", model_type=\"finsentiment\")'
       "
     deploy:
       resources:
@@ -57,18 +54,17 @@ services:
       - WANDB_API_KEY=${WANDB_API_KEY:-}
     volumes:
       - ./openmedallion:/workspace/openmedallion
-      - ./openmedallion-fints:/workspace/openmedallion-fints
       - ./data:/workspace/data
-      - model-cache:/workspace/models
-    working_dir: /workspace/openmedallion-fints
+      - ./trained_models:/workspace/trained_models
+    working_dir: /workspace
     command: >
       bash -c "
       echo 'Training LGBM models for all asset classes...' &&
       for asset in commodities crypto equities forex; do
         echo \"Training $asset...\" &&
-        python scripts/train_lgbm.py --asset_class $asset --output_dir ./models/$asset &&
+        python openmedallion/fints/scripts/train_lgbm.py --asset_class $asset --output_dir ./trained_models/fints/$asset &&
         echo \"Pushing $asset model to Hub...\" &&
-        python -c \"from openmedallion.hub import push_to_hub, setup_token; setup_token(); push_to_hub('./models/$asset', '${HF_USERNAME:-openmedallion}/fints-lgbm-$asset', model_type='fints', asset_class='$asset')\"
+        python -c \"from openmedallion.hub import push_to_hub, setup_token; setup_token(); push_to_hub('./trained_models/fints/$asset', '${HF_USERNAME:-openmedallion}/fints-lgbm-$asset', model_type='fints', asset_class='$asset')\"
       done &&
       echo 'All FinTS models trained and pushed to Hub.'
       "
@@ -99,11 +95,9 @@ services:
       - TOKENIZERS_PARALLELISM=false
     volumes:
       - ./openmedallion:/workspace/openmedallion
-      - ./openmedallion-finsentiment:/workspace/openmedallion-finsentiment
-      - ./openmedallion-fints:/workspace/openmedallion-fints
       - ./data:/workspace/data
+      - ./trained_models:/workspace/trained_models
       - hf-cache:/root/.cache/huggingface
-      - model-cache:/workspace/models
       - ./notebooks:/workspace/notebooks
     working_dir: /workspace
     command: bash
@@ -135,11 +129,9 @@ services:
       - JUPYTER_ENABLE_LAB=yes
     volumes:
       - ./openmedallion:/workspace/openmedallion
-      - ./openmedallion-finsentiment:/workspace/openmedallion-finsentiment
-      - ./openmedallion-fints:/workspace/openmedallion-fints
       - ./data:/workspace/data
+      - ./trained_models:/workspace/trained_models
       - hf-cache:/root/.cache/huggingface
-      - model-cache:/workspace/models
       - ./notebooks:/workspace/notebooks
     working_dir: /workspace
     ports:
@@ -161,6 +153,4 @@ services:
 
 volumes:
   hf-cache:
-    driver: local
-  model-cache:
     driver: local

@@ -63,15 +63,15 @@ Two publishable ML models for systematic trading, built from the `oyi77/OpenMeda
 
 **Step 1: Copy files to HuggingFace repos**
 ```bash
-# FinTS
+# FinTS — copy model card & package code
 cd ~/projects/hf-repos/openmedallion-fints
-cp ~/projects/OpenMedallion/openmedallion-fints/MODEL_CARD.md README.md
-cp -r ~/projects/OpenMedallion/openmedallion-fints/* .
+cp ~/projects/OpenMedallion/model_cards/FINTS_LGBM_MODEL_CARD.md README.md
+cp -r ~/projects/OpenMedallion/openmedallion/fints/* .
 
 # FinSentiment
 cd ~/projects/hf-repos/openmedallion-finsentiment
-cp ~/projects/OpenMedallion/openmedallion-finsentiment/MODEL_CARD.md README.md
-cp -r ~/projects/OpenMedallion/openmedallion-finsentiment/* .
+cp ~/projects/OpenMedallion/model_cards/FINSENTIMENT_MODEL_CARD.md README.md
+cp -r ~/projects/OpenMedallion/openmedallion/finsentiment/* .
 ```
 
 **Step 2: Initial commit and push**
@@ -93,7 +93,7 @@ git push
 
 ```bash
 # FinTS LightGBM on equities (baseline)
-python openmedallion-fints/scripts/train_lgbm.py \
+python openmedallion/fints/scripts/train_lgbm.py \
   --asset-class equities \
   --data-dir ~/.cache/huggingface/hub/datasets--oyi77--OpenMedallion/snapshots/006f38c73a17da4bd0953102713b6ea63356693d/data/training/ai/ \
   --model-dir ./fints_models \
@@ -102,7 +102,7 @@ python openmedallion-fints/scripts/train_lgbm.py \
   --learning-rate 0.05
 
 # FinTS Backtesting
-python openmedallion-fints/scripts/eval_backtest.py \
+python openmedallion/fints/scripts/eval_backtest.py \
   --asset-class equities \
   --data-dir ~/.cache/huggingface/hub/datasets--oyi77--OpenMedallion/snapshots/006f38c73a17da4bd0953102713b6ea63356693d/data/training/ai/ \
   --output-dir ./backtest_results \
@@ -110,13 +110,13 @@ python openmedallion-fints/scripts/eval_backtest.py \
   --lookback 20
 
 # FinSentiment data preparation (80k samples)
-python openmedallion-finsentiment/scripts/prepare_sentiment_data.py \
+python openmedallion/finsentiment/scripts/prepare_sentiment_data.py \
   --data-dir ~/.cache/huggingface/hub/datasets--oyi77--OpenMedallion/snapshots/006f38c73a17da4bd0953102713b6ea63356693d/data/training/ai/ \
   --output-dir ./sentiment_data \
   --max-samples 80000
 
 # FinSentiment QLoRA fine-tuning (~2-4 hours)
-python openmedallion-finsentiment/scripts/fine_tune_qwen.py \
+python openmedallion/finsentiment/scripts/fine_tune_qwen.py \
   --dataset-path ./sentiment_data/train.parquet \
   --val-dataset-path ./sentiment_data/val.parquet \
   --output-dir ./finsentiment_model \
@@ -125,7 +125,7 @@ python openmedallion-finsentiment/scripts/fine_tune_qwen.py \
   --gradient-accumulation-steps 4
 
 # FinSentiment evaluation
-python openmedallion-finsentiment/scripts/eval_finsentiment.py \
+python openmedallion/finsentiment/scripts/eval_finsentiment.py \
   --model-name Qwen/Qwen2.5-7B-Instruct \
   --adapter-path ./finsentiment_model/final_model \
   --dataset-path ./sentiment_data/test.parquet
@@ -142,14 +142,14 @@ After training, update both MODEL_CARD.md files with:
 ```bash
 # FinTS
 cd ~/projects/hf-repos/openmedallion-fints
-cp -r ~/projects/OpenMedallion/fints_models/* .
+cp -r ~/projects/OpenMedallion/trained_models/fints/* .
 git add .
-git commit -m "Add trained LightGBM models with backtest results"
+git commit -m "Add trained models with backtest results"
 git push
 
 # FinSentiment
 cd ~/projects/hf-repos/openmedallion-finsentiment
-cp -r ~/projects/OpenMedallion/finsentiment_model/* .
+cp -r ~/projects/OpenMedallion/trained_models/finsentiment/* .
 git add .
 git commit -m "Add QLoRA fine-tuned Qwen2.5-7B with evaluation results"
 git push
@@ -197,24 +197,14 @@ After publication, both models will be integrated into the 1AI NEXUS systematic 
 2. **FinSentiment scores** → Regime classification + position sizing
 3. **Orchestration** → Existing "Kids" pattern for multi-strategy coordination
 
-## Files Implemented
-
-**openmedallion-fints/** (11 files):
-- `__init__.py`
-- `preprocessing/__init__.py`, `loader.py`, `features.py`, `splits.py`
-- `models/__init__.py`, `lgbm_baseline.py`, `patchtst.py`
-- `eval/__init__.py`, `metrics.py`
-- `scripts/train_lgbm.py`, `train_patchtst.py`, `eval_backtest.py`
-
-**openmedallion-finsentiment/** (3 files):
-- `scripts/prepare_sentiment_data.py`
-- `scripts/fine_tune_qwen.py`
-- `scripts/eval_finsentiment.py`
+**Package code** (under `openmedallion/`):
+- `fints/__init__.py`, `preprocessing/`, `models/`, `eval/`, `scripts/`
+- `finsentiment/__init__.py`, `scripts/`
 
 **Documentation** (3 files):
 - `README.md`
 - `docs/HUGGINGFACE_PUBLISHING_RESEARCH.md`
-- Both MODEL_CARD.md files
+- `model_cards/` — FINTS_LGBM_MODEL_CARD.md, FINTS_PATCHTST_MODEL_CARD.md, FINSENTIMENT_MODEL_CARD.md
 
 ---
 

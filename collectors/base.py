@@ -11,7 +11,6 @@ import pandas as pd
 import requests
 
 LOG = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 # Repo root is two levels up from this file (collectors/base.py -> repo root)
 REPO_ROOT = Path(__file__).resolve().parent.parent
