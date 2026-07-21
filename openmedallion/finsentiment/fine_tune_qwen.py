@@ -58,7 +58,7 @@ def format_chat_prompt(text: str, label: str = None, tokenizer=None) -> str:
         return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=(label is None))
     
     # Fallback manual format if no tokenizer
-    prompt = "<|im_start|>system\nYou are a financial sentiment analysis expert. Classify the sentiment of the given financial text as 'positive', 'negative', or 'neutral'.<|im_end|>\n"
+    prompt = "<|im_start|>system\nYou are a financial sentiment analysis assistant.<|im_end|>\n"
     prompt += f"<|im_start|>user\nClassify the sentiment of this financial text:\n\n{text}<|im_end|>\n"
     
     if label is not None:
