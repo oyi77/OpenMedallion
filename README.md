@@ -29,7 +29,7 @@ Time-series forecasting models for multi-asset directional prediction.
 - **README**: [`model_cards/FINTS_LGBM_MODEL_CARD.md`](model_cards/FINTS_LGBM_MODEL_CARD.md)
 - **Model Cards**: [`FINTS_LGBM_MODEL_CARD.md`](model_cards/FINTS_LGBM_MODEL_CARD.md), [`FINTS_PATCHTST_MODEL_CARD.md`](model_cards/FINTS_PATCHTST_MODEL_CARD.md)
 
-**HuggingFace**: `<namespace>/openmedallion-fints`
+**HuggingFace**: [`oyi77/openmedallion-fints`](https://huggingface.co/oyi77/openmedallion-fints)
 
 **Local Training**:
 ```bash
@@ -39,7 +39,7 @@ python openmedallion/fints/scripts/train_lgbm.py \
     --max-per-class 20 \
     --splits 5 \
     --push_to_hub \
-    --hub_username <your-username> \
+    --hub_username oyi77 \
     --hub_repo_name openmedallion-fints
 
 # Train PatchTST transformer
@@ -65,14 +65,14 @@ python openmedallion/fints/scripts/train_patchtst.py \
 
 QLoRA fine-tuned LLM for financial text sentiment classification.
 
-**Status**: ✅ Production Ready
+**Status**: ⚠️ **GPU Required** (QLoRA training needs ≥12GB VRAM; training infrastructure complete)
 
 - **Base Model**: Qwen2.5-7B-Instruct (4-bit QLoRA)
 - **Task**: Financial headline/text sentiment (positive/negative/neutral)
 - **README**: [`model_cards/FINSENTIMENT_MODEL_CARD.md`](model_cards/FINSENTIMENT_MODEL_CARD.md)
 - **Model Card**: [`FINSENTIMENT_MODEL_CARD.md`](model_cards/FINSENTIMENT_MODEL_CARD.md)
 
-**HuggingFace**: `<namespace>/openmedallion-finsentiment`
+**HuggingFace**: [`oyi77/openmedallion-finsentiment`](https://huggingface.co/oyi77/openmedallion-finsentiment)
 
 **Local Training**:
 ```bash
@@ -83,14 +83,10 @@ python openmedallion/finsentiment/prepare_sentiment_data.py \
 
 # Fine-tune (~2-4 hours on RTX 3060)
 python openmedallion/finsentiment/fine_tune_qwen.py \
-    --train data/sampled_train.jsonl \
-    --val data/sampled_val.jsonl \
-    --epochs 1 \
-    --push_to_hub \
-    --hub_username <your-username> \
-    --hub_repo_name openmedallion-finsentiment \
-    --use_wandb \
-    --wandb_project openmedallion
+    --dataset-dir data/sentiment \
+    --output-dir ./outputs \
+    --epochs 3 \
+    --batch-size 4
 
 # Evaluate vs zero-shot baseline
 python openmedallion/finsentiment/eval_finsentiment.py \

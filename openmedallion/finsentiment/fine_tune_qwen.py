@@ -40,7 +40,7 @@ def format_chat_prompt(text: str, label: str = None, tokenizer=None) -> str:
     messages = [
         {
             "role": "system",
-            "content": "You are a financial sentiment analysis expert. Classify the sentiment of the given financial text as 'positive', 'negative', or 'neutral'."
+            "content": "You are a financial sentiment analysis assistant."
         },
         {
             "role": "user",
@@ -92,7 +92,7 @@ def preprocess_function(examples: Dict, tokenizer, label_map: Dict[str, int], la
         # Format as chat with system prompt
         chat = [
             {"role": "system", "content": "You are a financial sentiment analysis assistant."},
-            {"role": "user", "content": user_msg},
+            {"role": "user", "content": f"Classify the sentiment of this financial text:\n\n{user_msg}"},
             {"role": "assistant", "content": label}
         ]
         
