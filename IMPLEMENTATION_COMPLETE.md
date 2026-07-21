@@ -208,6 +208,52 @@ After publication, both models will be integrated into the 1AI NEXUS systematic 
 
 ---
 
+
+## Data Infrastructure Improvements (Phases 1-3)
+
+### Phase 1 — Foundation
+- Merged duplicate packages (`openmedallion-fints`, `openmedallion-finsentiment`) after preserving model artifacts
+- Rewrote `docker-compose.yml` with canonical paths, removed deprecated `version` key
+- Added per-collector timeout profiles to `run_all_collectors.py`
+- Updated README and documentation to drop stale duplicate references
+
+### Phase 2 — Quality & Config
+- **21 pytest tests** covering collectors, config, and core utilities
+- Environment-var config extraction (`OM_HISTORY_START`, `OM_DATA_DIR`)
+- Duplicate cleanup, Python 3.10+ bump
+
+### Phase 3 — Incremental & Documentation
+- `--since` incremental mode for all collectors (skip historical, only new data)
+- `DEPENDENCIES` dict per collector for dependency-aware scheduling
+- Docker log rotation (max-size 10m, max-file 3)
+- Sphinx doc scaffolding (`docs/conf.py`, `docs/api/`)
+
+### Historical Data Extension — Final Ranges
+
+| Asset Class        | Rows       | Date Range                   | Notes |
+|--------------------|-----------|------------------------------|-------|
+| **Equities**       | 3,915,426 | 1980-01-02 → 2026-07-20       | 301 US tickers at yfinance max (DJIA since 1980, tech since 1997-1999) |
+| **ETFs**           | 1,959,044 | 1993-01-29 → 2026-07-20       | SPY at inception; 200+ ETFs extended |
+| **Indices**        | 469,050   | 1950-01-03 → 2026-07-20       | S&P 500 daily at yfinance max |
+| **Forex (fx futures)**| 472,221 | 1980-01-02 → 2026-07-20      | 9 currency pairs + USD index |
+| **Equity Index Futures**| 86,239 | 1990-01-02 → 2026-07-20     | S&P 500 E-mini, Nasdaq, Russell, Dow, VIX |
+| **Treasury Futures**| —        | 2000-09-21 → 2026-07-20      | 10Y, 2Y, 5Y, 30Y, Ultra, Ultra 10Y |
+| **Commodities**    | 192,177   | 1997-2000 → 2026-07-20        | 36 futures at yfinance availability limits |
+| **Weather**        | 274,255   | 1940-01-01 → 2026-07-20 (5 cities) / 2000 → 2026 (12 cities)| OpenMeteo rate-limit blocked 12 cities |
+| **Macro (OECD/FRED)** | 427,870 | 1947-01-01 → 2026 (varies)   | GDP, CPI, unemployment, industrial production |
+| **Macro (Fama-French)** | — | 1926-07-01 → 2026          | 3-factor, momentum, volatility factors |
+| **Bonds**          | 300,238   | 1962-01-02 → 2026-07-20       | Treasury yields, corporate spreads |
+| **Crypto/Onchain** | 172,982   | 2017 → 2026                   | Bybit/OKX perpetual futures + open interest |
+| **All categories** | 10,721,692 | 1926 → 2026 (oldest)        | 2,131 files, 32 categories, 392 MB |
+
+**Key constraints reached**:
+- yfinance: equities max 1980-01-02 (DJIA components); S&P 500 index max 1950-01-03
+- FRED: source limit 1947-01-01
+- Fama-French: source limit 1926-07-01
+- ECB: source limit 1999-01-01 (euro inception)
+- OpenMeteo: projected limit 1940 (ERA5-Land data availability)
+- Weather extension blocked at 12 cities due to per-IP rate limiting on archive API
+
 **Status**: Ready for training and publication! 🚀
 
 All code is implemented, documented, and structured for professional HuggingFace release.

@@ -138,7 +138,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for complete Hub workflow.
 ## Data Source
 
 Both models use the `oyi77/OpenMedallion` HuggingFace dataset:
-- **OpenMedallion-FinTS**: OHLCV time-series (1,913 parquet files, 28 categories)
+- **OpenMedallion-FinTS**: OHLCV time-series (2,131 parquet files, 32 categories, 10.7M rows, 392 MB)
 - **OpenMedallion-FinSentiment**: Instruction-tuning text data (~600k rows, finance Q&A)
 
 **Local Cache**: `~/.cache/huggingface/hub/datasets--oyi77--OpenMedallion/`
