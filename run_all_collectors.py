@@ -67,6 +67,7 @@ COLLECTORS = [
     "collectors/crypto/stablecoin_metrics.py",
     "collectors/crypto/bitcoin_onchain.py",
     "collectors/crypto/coingecko_coins.py",
+    "collectors/crypto/ccxt_ohlcv.py",
 
     # DeFi
     "collectors/defi/protocol_fees.py",
@@ -101,6 +102,7 @@ COLLECTORS = [
     "collectors/equities/sp_index.py",
 
     "collectors/etfs/yfinance_etfs.py",
+    "collectors/equities/yfinance_hourly.py",
 
     # Factors
     "collectors/factors/aqr_factors.py",
@@ -111,6 +113,7 @@ COLLECTORS = [
     "collectors/forex/ecb_frankfurter.py",
     "collectors/forex/fred_forex.py",
 
+    "collectors/forex/stooq_intraday.py",
     "collectors/forex/fx_futures.py",
     # Fundamentals
 
@@ -264,6 +267,10 @@ TIMEOUT_PROFILES: dict[str, int] = {
     "bitcoin_metrics": 600,
     "eth_metrics": 600,
     "sol_metrics": 600,
+    # New intraday collectors — many symbols × intervals
+    "ccxt_ohlcv": 1800,
+    "stooq_intraday": 300,
+    "yfinance_hourly": 1200,
 }
 
 

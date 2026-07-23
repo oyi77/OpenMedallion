@@ -54,23 +54,12 @@ def fetch(url: str, params: dict | None = None, retries: int = 5, timeout: int =
     raise RuntimeError("unreachable")
 
 
-def save(df: pd.DataFrame, category: str, filename: str) -> None:
+def save(df: pd.DataFrame | None, category: str, filename: str) -> None:
     """Save DataFrame to parquet. Warns and skips if empty."""
-    if df.empty:
+    if df is None or df.empty:
         LOG.warning("0 rows returned for %s/%s — skipping", category, filename)
         return
     out = repo_path(category, filename)
     df.to_parquet(out, index=True)
     rel = out.relative_to(REPO_ROOT)
     print(f"Saved {len(df):,} rows to data/{rel.as_posix().removeprefix('data/')}")
-
-
-def to_datetime_index(df: pd.DataFrame, col: str = "date") -> pd.DataFrame:
-    """Ensure col is a proper DatetimeIndex."""
-    if col in df.columns:
-        df[col] = pd.to_datetime(df[col], utc=True)
-        df = df.set_index(col).sort_index()
-    elif not isinstance(df.index, pd.DatetimeIndex):
-        df.index = pd.to_datetime(df.index, utc=True)
-        df = df.sort_index()
-    return df
